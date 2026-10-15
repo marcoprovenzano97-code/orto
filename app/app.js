@@ -1,0 +1,358 @@
+(function () {
+  'use strict';
+
+  const C = window.COLTURE, FAM = window.FAMIGLIE, ESIG = window.ESIGENZE, ZONE = window.ZONE;
+  const BY_ID = Object.fromEntries(C.map(c => [c.id, c]));
+  const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+  const MESI_BREVI = ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'];
+  const ATTIVITA = [
+    { k: 'sem', nome: 'Semina in semenzaio', breve: 'Semenzaio',  css: 'var(--sem)', hint: 'In vaschette al riparo (serra, davanzale, tunnel).' },
+    { k: 'dir', nome: 'Semina diretta',      breve: 'Diretta',    css: 'var(--dir)', hint: 'Direttamente nell\'aiuola (o messa a dimora di spicchi/tuberi).' },
+    { k: 'tra', nome: 'Trapianto',           breve: 'Trapianto',  css: 'var(--tra)', hint: 'Piantine dal semenzaio o acquistate.' },
+    { k: 'rac', nome: 'Raccolta',            breve: 'Raccolta',   css: 'var(--rac)', hint: '' }
+  ];
+  const PERENNI = new Set(['carciofo', 'fragola', 'asparago']);
+  const ROTAZIONE = ['alta', 'media', 'bassa', 'miglioratrice'];
+
+  // ── Stato ──────────────────────────────────────────────
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('orto.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('orto.' + k, JSON.stringify(v)); } catch (e) { /* ignore */ } }
+  };
+  const state = {
+    zona: ZONE[store.get('zona')] ? store.get('zona') : 'nord',
+    mese: new Date().getMonth() + 1,
+    filtro: { q: '', fam: '', ora: false },
+    calZona: null
+  };
+  const MESE_OGGI = new Date().getMonth() + 1;
+
+  // ── Utility ────────────────────────────────────────────
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const cache = {};
+  function mesi(spec) {
+    if (!spec) return new Set();
+    if (cache[spec]) return cache[spec];
+    const out = new Set();
+    spec.split(',').forEach(part => {
+      const [a, b] = part.split('-').map(Number);
+      if (!b) { out.add(a); return; }
+      let m = a;
+      for (let i = 0; i < 12; i++) { out.add(m); if (m === b) break; m = m % 12 + 1; }
+    });
+    return (cache[spec] = out);
+  }
+  const inMese = (c, zona, k, m) => mesi(c.cal[zona][k]).has(m);
+  const famDot = f => `<span class="dot" style="background:${FAM[f].colore}"></span>`;
+  const famPill = f => `<span class="pill">${famDot(f)}${esc(FAM[f].nome)}</span>`;
+  const chip = (c, cls = '') => `<a class="chip ${cls}" href="#/coltura/${c.id}"><span class="em">${c.emoji}</span>${esc(c.nome)}</a>`;
+
+  // Spazio per pianta in un cassone: sesto quadrato pari alla distanza sulla fila,
+  // ma non meno di metà della distanza tra le file (nei cassoni non servono corridoi).
+  const areaPianta = c => Math.pow(Math.max(c.dist[0], c.dist[1] / 2), 2);
+  function pianteMq(c) {
+    const v = 10000 / areaPianta(c);
+    if (v >= 1) return `≈ ${Math.round(v)} per m²`;
+    return `1 ogni ${Math.round(1 / v * 10) / 10} m²`.replace('.', ',');
+  }
+  function relazioni(c, campo) {
+    const ids = new Set(c[campo]);
+    C.forEach(o => { if (o[campo].includes(c.id)) ids.add(o.id); });
+    return [...ids].map(id => BY_ID[id]).filter(Boolean).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  // ── Zona (barra in alto) ───────────────────────────────
+  function renderZone() {
+    const el = document.getElementById('zoneSwitch');
+    el.innerHTML = Object.entries(ZONE).map(([k, z]) =>
+      `<button role="radio" aria-checked="${k === state.zona}" data-zona="${k}" title="${esc(z.desc)}">${esc(z.nome)}</button>`).join('');
+    el.onclick = e => {
+      const b = e.target.closest('button[data-zona]');
+      if (!b) return;
+      state.zona = b.dataset.zona; state.calZona = null;
+      store.set('zona', state.zona);
+      renderZone(); route();
+    };
+  }
+
+  // ── Viste ──────────────────────────────────────────────
+  function viewMese() {
+    const m = state.mese, z = state.zona;
+    const blocchi = ATTIVITA.map(a => {
+      const list = C.filter(c => inMese(c, z, a.k, m)).sort((x, y) => x.nome.localeCompare(y.nome));
+      return `<section class="card">
+        <div class="act-title"><span class="bar" style="background:${a.css}"></span><h2>${a.nome}</h2><span class="count">${list.length}</span></div>
+        ${a.hint ? `<p class="muted small" style="margin:-4px 0 10px">${a.hint}</p>` : ''}
+        ${list.length ? `<div class="chips">${list.map(c => chip(c)).join('')}</div>` : '<p class="empty">Niente in questo mese.</p>'}
+      </section>`;
+    }).join('');
+    return `
+      <div class="month-head">
+        <button class="iconbtn" data-act="prev" aria-label="Mese precedente">‹</button>
+        <div style="text-align:center">
+          <h1>${MESI[m - 1]}</h1>
+          <div class="sub">Zona ${esc(ZONE[z].nome)}${m === MESE_OGGI ? ' · mese corrente' : ''}</div>
+        </div>
+        <button class="iconbtn" data-act="next" aria-label="Mese successivo">›</button>
+      </div>
+      <div class="stack">${blocchi}</div>
+      <p class="disclaimer">Calendari indicativi per la zona ${esc(ZONE[z].nome)}: ${esc(ZONE[z].desc)} Adatta le date alle gelate della tua zona.</p>`;
+  }
+  function bindMese(root) {
+    root.querySelector('[data-act="prev"]').onclick = () => { state.mese = (state.mese + 10) % 12 + 1; render(); };
+    root.querySelector('[data-act="next"]').onclick = () => { state.mese = state.mese % 12 + 1; render(); };
+  }
+
+  function listaFiltrata() {
+    const f = state.filtro, z = state.zona, q = f.q.trim().toLowerCase();
+    return C.filter(c =>
+      (!q || c.nome.toLowerCase().includes(q) || FAM[c.fam].nome.toLowerCase().includes(q)) &&
+      (!f.fam || c.fam === f.fam) &&
+      (!f.ora || ['sem', 'dir', 'tra'].some(k => inMese(c, z, k, MESE_OGGI)))
+    ).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+  function righe() {
+    const list = listaFiltrata(), z = state.zona;
+    if (!list.length) return '<p class="empty">Nessuna coltura trovata.</p>';
+    return list.map(c => {
+      const ora = ['sem', 'dir', 'tra'].some(k => inMese(c, z, k, MESE_OGGI));
+      return `<a class="row" href="#/coltura/${c.id}">
+        <span class="em">${c.emoji}</span>
+        <span class="body">
+          <span class="name">${esc(c.nome)}</span>
+          <span class="meta">${famPill(c.fam)}<span class="pill">💧 ${esc(c.acqua.freq.split(/[:,(]| in | fino | se | nei | dopo /)[0].trim())}</span>${ora ? '<span class="pill now-badge">Si semina ora</span>' : ''}</span>
+        </span>
+        <span class="chev">›</span>
+      </a>`;
+    }).join('');
+  }
+  function viewColture() {
+    const f = state.filtro;
+    const famUsate = [...new Set(C.map(c => c.fam))];
+    return `
+      <input class="search" type="search" id="q" placeholder="Cerca un ortaggio o una famiglia…" value="${esc(f.q)}" autocomplete="off">
+      <div class="filters" id="famFilters">
+        <button class="fbtn" aria-pressed="${!f.fam}" data-fam="">Tutte</button>
+        ${famUsate.map(k => `<button class="fbtn" aria-pressed="${f.fam === k}" data-fam="${k}">${famDot(k)}${esc(FAM[k].nome)}</button>`).join('')}
+      </div>
+      <label class="toggle"><input type="checkbox" id="ora" ${f.ora ? 'checked' : ''}> Solo quelle da seminare o trapiantare a ${MESI[MESE_OGGI - 1].toLowerCase()}</label>
+      <div class="list" id="list">${righe()}</div>`;
+  }
+  function bindColture(root) {
+    const list = root.querySelector('#list');
+    root.querySelector('#q').oninput = e => { state.filtro.q = e.target.value; list.innerHTML = righe(); };
+    root.querySelector('#ora').onchange = e => { state.filtro.ora = e.target.checked; list.innerHTML = righe(); };
+    root.querySelector('#famFilters').onclick = e => {
+      const b = e.target.closest('button[data-fam]');
+      if (!b) return;
+      state.filtro.fam = b.dataset.fam;
+      root.querySelectorAll('#famFilters button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      list.innerHTML = righe();
+    };
+  }
+
+  function calendario(c, z) {
+    let h = '<div class="cal"><span></span>';
+    MESI_BREVI.forEach((l, i) => { h += `<span class="mh ${i + 1 === MESE_OGGI ? 'now' : ''}">${l}</span>`; });
+    ATTIVITA.forEach(a => {
+      if (!c.cal[z][a.k]) return;
+      const s = mesi(c.cal[z][a.k]);
+      h += `<span class="lbl">${a.breve}</span>`;
+      for (let m = 1; m <= 12; m++) {
+        h += `<span class="cell ${m === MESE_OGGI ? 'now' : ''}" title="${a.breve}: ${MESI[m - 1]}" ${s.has(m) ? `style="background:${a.css}"` : ''}></span>`;
+      }
+    });
+    return h + '</div>';
+  }
+
+  function rotazioneTesto(c) {
+    if (PERENNI.has(c.id)) {
+      return `<p>Coltura <strong>perenne</strong>: resta nella stessa aiuola per più anni. Conviene dedicarle un cassone fuori dallo schema di rotazione.</p>`;
+    }
+    const i = ROTAZIONE.indexOf(c.esig);
+    const prima = ESIG[ROTAZIONE[(i + 3) % 4]], dopo = ESIG[ROTAZIONE[(i + 1) % 4]];
+    return `<dl class="kv">
+        <dt>Famiglia</dt><dd>${famPill(c.fam)}</dd>
+        <dt>Esigenza</dt><dd><strong>${ESIG[c.esig].nome}</strong> — ${ESIG[c.esig].desc}</dd>
+        <dt>Meglio dopo</dt><dd>${prima.nome.toLowerCase()}</dd>
+        <dt>Poi lascia il posto a</dt><dd>${dopo.nome.toLowerCase()}</dd>
+      </dl>
+      <p class="note" style="margin-top:10px">Non riportare <strong>${FAM[c.fam].nome}</strong> nello stesso cassone prima di 3–4 anni: malattie e parassiti della famiglia restano nel terreno.</p>`;
+  }
+
+  function viewColtura(id) {
+    const c = BY_ID[id];
+    if (!c) return `<p>Coltura non trovata. <a href="#/colture">Torna all'elenco</a></p>`;
+    const z = state.calZona || state.zona;
+    const amiche = relazioni(c, 'amiche'), nemiche = relazioni(c, 'nemiche');
+    const stessaFam = C.filter(o => o.fam === c.fam && o.id !== c.id);
+    return `
+      <a class="back" href="#/colture">‹ Colture</a>
+      <div class="stack">
+        <div class="hero">
+          <div class="em">${c.emoji}</div>
+          <div>
+            <h1>${esc(c.nome)}</h1>
+            <div class="meta">${famPill(c.fam)}<span class="pill">${esc(ESIG[c.esig].nome)}</span>${PERENNI.has(c.id) ? '<span class="pill">Perenne</span>' : ''}</div>
+          </div>
+        </div>
+        <p style="margin:12px 0 0">${esc(c.desc)}</p>
+
+        <div class="facts">
+          <div class="fact"><div class="k">Ciclo</div><div class="v">${esc(c.ciclo)}</div></div>
+          <div class="fact"><div class="k">Acqua</div><div class="v">${esc(c.acqua.freq)}</div></div>
+          <div class="fact"><div class="k">Esposizione</div><div class="v">${esc(c.sole)}</div></div>
+          <div class="fact"><div class="k">Distanze</div><div class="v">${c.dist[0]} cm sulla fila · ${c.dist[1]} cm tra file</div></div>
+          <div class="fact"><div class="k">Nel cassone</div><div class="v">${pianteMq(c)}</div></div>
+          <div class="fact"><div class="k">Germinazione</div><div class="v">${esc(c.germ)}</div></div>
+        </div>
+
+        <section class="card">
+          <div class="section-title"><h2>📅 Calendario</h2></div>
+          <div class="cal-zones" id="calZones">
+            ${Object.entries(ZONE).map(([k, zz]) => `<button class="fbtn" aria-pressed="${k === z}" data-z="${k}">${esc(zz.nome)}</button>`).join('')}
+          </div>
+          ${calendario(c, z)}
+          <div class="legend">${ATTIVITA.filter(a => c.cal[z][a.k]).map(a => `<span><span class="dot" style="background:${a.css}"></span>${a.nome}</span>`).join('')}</div>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>💧 Irrigazione</h2></div>
+          <dl class="kv">
+            <dt>Frequenza</dt><dd>${esc(c.acqua.freq)}</dd>
+            <dt>Quantità</dt><dd>${esc(c.acqua.quant)}</dd>
+          </dl>
+          <p class="note" style="margin-top:10px">${esc(c.acqua.note)}</p>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🌍 Terreno ed esigenze</h2></div>
+          <dl class="kv">
+            <dt>Terreno</dt><dd>${esc(c.terreno)}</dd>
+            <dt>pH</dt><dd>${esc(c.ph)}</dd>
+            <dt>Concimazione</dt><dd>${esc(ESIG[c.esig].desc)}</dd>
+            <dt>Temperatura</dt><dd>${esc(c.tGerm)}</dd>
+          </dl>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🤝 Consociazioni</h2></div>
+          <p class="muted small" style="margin:0 0 6px">Sta bene vicino a</p>
+          ${amiche.length ? `<div class="chips">${amiche.map(o => chip(o, 'good')).join('')}</div>` : '<p class="empty">—</p>'}
+          <p class="muted small" style="margin:12px 0 6px">Da tenere lontano da</p>
+          ${nemiche.length ? `<div class="chips">${nemiche.map(o => chip(o, 'bad')).join('')}</div>` : '<p class="empty">Nessuna incompatibilità nota.</p>'}
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🔄 Rotazione</h2></div>
+          ${rotazioneTesto(c)}
+          ${stessaFam.length ? `<p class="muted small" style="margin:12px 0 6px">Stessa famiglia (non alternarle tra loro)</p><div class="chips">${stessaFam.map(o => chip(o)).join('')}</div>` : ''}
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🐛 Avversità comuni</h2></div>
+          <ul class="clean">${c.avv.map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>💡 Consigli</h2></div>
+          <ul class="clean">${c.consigli.map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+        </section>
+      </div>`;
+  }
+  function bindColtura(root) {
+    const z = root.querySelector('#calZones');
+    if (z) z.onclick = e => {
+      const b = e.target.closest('button[data-z]');
+      if (!b) return;
+      state.calZona = b.dataset.z;
+      const y = window.scrollY; render(); window.scrollTo(0, y);
+    };
+  }
+
+  function viewGuida() {
+    const gruppo = e => C.filter(c => c.esig === e && !PERENNI.has(c.id)).map(c => c.emoji + ' ' + c.nome).join(', ');
+    const fams = [...new Set(C.map(c => c.fam))];
+    return `
+      <div class="stack">
+        <h1 style="font-size:1.4rem;margin:4px 0">Guida all'orto in cassoni</h1>
+
+        <section class="card">
+          <div class="section-title"><h2>🔄 La rotazione in 4 anni</h2></div>
+          <p style="margin-top:0">Dividi l'orto in 4 gruppi di cassoni. Ogni anno ogni gruppo passa alla fase successiva: il terreno non si impoverisce e le malattie di una famiglia non si accumulano.</p>
+          <div class="rot">
+            ${ROTAZIONE.map((e, i) => `<div class="step"><div class="n">Anno ${i + 1}</div><div class="t">${ESIG[e].nome}</div><div class="small muted">${ESIG[e].desc}</div><div class="small" style="margin-top:6px">${gruppo(e)}</div></div>`).join('')}
+          </div>
+          <p class="note" style="margin-top:12px">Due regole: <strong>1)</strong> la stessa famiglia non torna nello stesso cassone prima di 3–4 anni; <strong>2)</strong> dopo una coltura molto esigente metti una meno esigente, e chiudi il ciclo con le leguminose che riportano azoto. Le perenni (asparago, carciofo, fragola) vanno in cassoni dedicati.</p>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🌿 Famiglie botaniche</h2></div>
+          ${fams.map(f => `<div class="fam-row"><div class="fn">${famDot(f)}${esc(FAM[f].nome)}</div><div class="chips">${C.filter(c => c.fam === f).map(c => chip(c)).join('')}</div></div>`).join('')}
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>💧 Irrigare nei cassoni</h2></div>
+          <ul class="clean">
+            <li>Il terreno rialzato drena e si scalda di più: asciuga <strong>prima</strong> della piena terra. Controlla col dito: se a 3–5 cm è asciutto, è ora di bagnare.</li>
+            <li>Meglio poche irrigazioni abbondanti che tante leggere: l'acqua deve arrivare in profondità e spingere le radici verso il basso.</li>
+            <li>Irriga al mattino presto o la sera, sempre al piede. Le foglie bagnate favoriscono funghi (peronospora, oidio).</li>
+            <li>Pacciama con paglia o foglie secche: dimezza l'acqua necessaria e tiene a bada le erbacce.</li>
+            <li>Un'ala gocciolante con timer rende l'irrigazione regolare: la regolarità conta quanto la quantità.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🤝 Consociazioni</h2></div>
+          <p style="margin-top:0">Coltivare vicine piante che si aiutano: profondità di radici diverse, odori che confondono i parassiti, una che fa ombra all'altra. Esempi classici:</p>
+          <ul class="clean">
+            <li>🍅 Pomodoro + 🌿 basilico: il basilico allontana alcuni insetti e cresce bene nella mezz'ombra.</li>
+            <li>🥕 Carota + 🧅 cipolla/porro: si proteggono a vicenda dalle rispettive mosche.</li>
+            <li>🌽 Mais + 🫘 fagiolo + 🎃 zucca ("tre sorelle"): il mais fa da tutore, il fagiolo porta azoto, la zucca copre il suolo.</li>
+            <li>Da evitare: 🫘 leguminose vicino ad 🧄 aglio e 🧅 cipolla, e il finocchio vicino a quasi tutto.</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <div class="section-title"><h2>🗺️ Le zone</h2></div>
+          ${Object.values(ZONE).map(z => `<p style="margin:0 0 6px"><strong>${esc(z.nome)}</strong> — ${esc(z.desc)}</p>`).join('')}
+          <p class="muted small" style="margin:8px 0 0">I calendari sono indicativi: in collina o vicino al mare possono spostarsi di 2–3 settimane. La regola d'oro per le colture estive è aspettare la fine delle gelate.</p>
+        </section>
+      </div>`;
+  }
+
+  // ── Modulo "I miei cassoni" (cassoni.js) ───────────────
+  const cassoni = window.OrtoCassoni({
+    C, BY_ID, FAM, ESIG, ZONE, store, state, esc, inMese, famDot, chip, relazioni, PERENNI, ROTAZIONE, areaPianta,
+    rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
+  });
+
+  // ── Router ─────────────────────────────────────────────
+  let lastRoute = '';
+  function route() {
+    const h = location.hash.replace(/^#\/?/, '') || 'mese';
+    const [page, arg] = h.split('/');
+    const view = document.getElementById('view');
+    let html, bind = null, tab = page;
+    if (page === 'colture') { html = viewColture(); bind = bindColture; }
+    else if (page === 'cassoni') { html = cassoni.viewLista(); bind = cassoni.bindLista; }
+    else if (page === 'cassone') { html = cassoni.viewCassone(arg); bind = v => cassoni.bindCassone(v, arg); tab = 'cassoni'; }
+    else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
+    else if (page === 'guida') { html = viewGuida(); }
+    else { html = viewMese(); bind = bindMese; tab = 'mese'; }
+    view.innerHTML = html;
+    if (bind) bind(view);
+    document.querySelectorAll('.tabbar a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
+    if (h !== lastRoute) window.scrollTo(0, 0);
+    lastRoute = h;
+  }
+  const render = route;
+
+  window.addEventListener('hashchange', () => { state.calZona = null; route(); });
+  renderZone();
+  route();
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();

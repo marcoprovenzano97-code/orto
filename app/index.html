@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Il mio Orto</title>
+  <meta name="description" content="Schede colture, calendario di semina per zona e guida alla rotazione per l'orto in aiuole.">
+  <meta name="theme-color" content="#3d2618">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon-192.png" alt=""><span>Il mio Orto</span></div>
+    <div class="zone-switch" id="zoneSwitch" role="radiogroup" aria-label="Zona climatica"></div>
+  </header>
+
+  <main id="view" tabindex="-1"></main>
+
+  <nav class="tabbar" aria-label="Sezioni">
+    <a href="#/mese" data-tab="mese"><span class="ti">📅</span><span>Questo mese</span></a>
+    <a href="#/cassoni" data-tab="cassoni"><span class="ti">🪴</span><span>I miei cassoni</span></a>
+    <a href="#/colture" data-tab="colture"><span class="ti">🥕</span><span>Colture</span></a>
+    <a href="#/guida" data-tab="guida"><span class="ti">📖</span><span>Guida</span></a>
+  </nav>
+
+  <script src="data/colture.js"></script>
+  <script src="cassoni.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
