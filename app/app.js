@@ -77,6 +77,90 @@
   }
 
   // ── Viste ──────────────────────────────────────────────
+  // Foto reali da Unsplash (licenza gratuita anche per uso commerciale).
+  const FOTO = {
+    copertina: '1591857177580-dc82b9ac4e1e',   // lattuga ed erba cipollina in un cassone di legno
+    aiuole:    '1601001815894-4bb6c81416d7',   // persona al lavoro tra aiuole rialzate
+    semina:    '1597868165956-03a6827955b1',   // mani che piantano una piantina
+    raccolto:  '1624668430039-0175a0fbf006'    // cassetta di legno con il raccolto
+  };
+  const foto = (id, w) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=72`;
+  const img = (id, alt, cls, sizes) =>
+    `<img class="${cls}" src="${foto(id, 1000)}" srcset="${[600, 1000, 1600, 2200].map(w => `${foto(id, w)} ${w}w`).join(', ')}" sizes="${sizes}" alt="${esc(alt)}" loading="${cls === 'hero-img' ? 'eager' : 'lazy'}" decoding="async">`;
+
+  function viewHome() {
+    const m = MESE_OGGI, z = state.zona;
+    const mese = ATTIVITA.map(a => ({ a, list: C.filter(c => inMese(c, z, a.k, m)).sort((x, y) => x.nome.localeCompare(y.nome)) }));
+    const colonne = mese.filter(x => x.list.length).map(({ a, list }) => `
+      <div class="hm-col">
+        <div class="hm-col-t"><span class="bar" style="background:${a.css}"></span>${a.breve === 'Diretta' ? 'Semina diretta' : a.breve}<span class="count">${list.length}</span></div>
+        <div class="chips">${list.slice(0, 4).map(c => chip(c)).join('')}${list.length > 4 ? `<a class="chip more" href="#/mese">+${list.length - 4}</a>` : ''}</div>
+      </div>`).join('');
+    const sezione = (id, alt, eyebrow, titolo, testo, link, cta, inverti) => `
+      <section class="feature ${inverti ? 'inv' : ''}">
+        <div class="feature-img">${img(id, alt, 'f-img', '(min-width: 760px) 50vw, 100vw')}</div>
+        <div class="feature-txt">
+          <p class="eyebrow">${eyebrow}</p>
+          <h2>${titolo}</h2>
+          <p>${testo}</p>
+          <a class="btn primary" href="${link}">${cta}</a>
+        </div>
+      </section>`;
+    return `
+      <section class="hero">
+        ${img(FOTO.copertina, 'Lattuga ed erba cipollina in un cassone di legno in un orto', 'hero-img', '100vw')}
+        <div class="hero-velo"></div>
+        <div class="hero-testo">
+          <p class="eyebrow">L'app per il tuo orto</p>
+          <h1>Coltiva con passione.<br>Organizza con metodo.</h1>
+          <p class="hero-sub">Calendario di semina per la tua zona, schede di ${C.length} ortaggi, rotazioni e progetto delle aiuole: tutto quello che serve per un orto che rende, stagione dopo stagione.</p>
+          <div class="btns">
+            <a class="btn primary big" href="#/cassoni">Inizia il tuo orto</a>
+            <a class="btn ghost big" href="#/mese">Cosa fare a ${MESI[m - 1].toLowerCase()}</a>
+          </div>
+        </div>
+        <a class="hero-giu" href="#home-mese" aria-label="Scorri">⌄</a>
+      </section>
+
+      <div class="home-corpo">
+        ${account.htmlOggi()}
+        <section class="home-mese" id="home-mese">
+          <div class="hm-head">
+            <div><p class="eyebrow">${MESI[m - 1]} · zona ${esc(ZONE[z].nome)}</p><h2>Questo mese nell'orto</h2></div>
+            <a class="link-freccia" href="#/mese">Tutto il calendario ›</a>
+          </div>
+          <div class="hm-grid">${colonne}</div>
+        </section>
+
+        ${sezione(FOTO.aiuole, 'Persona al lavoro tra aiuole rialzate piene di ortaggi', 'Il mio orto', 'Progetta le tue aiuole',
+          'Disegna cassoni, aiuole in piena terra e vasi cella per cella. L\'app controlla consociazioni, spazio tra le piante e ombra, e ti dice cosa piantare per rispettare la rotazione.',
+          '#/cassoni', 'Disegna la tua aiuola', false)}
+        ${sezione(FOTO.semina, 'Mani che piantano una piantina nel terreno', 'Calendario', 'Semina al momento giusto',
+          'Semine, trapianti e raccolte mese per mese, tarati sulla tua zona: Nord, Centro o Sud e isole. Niente più piantine bruciate dal gelo o semine fuori tempo.',
+          '#/mese', 'Apri il calendario', true)}
+        ${sezione(FOTO.raccolto, 'Cassetta di legno piena di pomodori, peperoni, cipolle ed erbe appena raccolti', 'Colture', 'Conosci ogni ortaggio',
+          `Schede tecniche di ${C.length} colture: quanta acqua, che terreno, distanze, tempi di raccolta, piante amiche e nemiche, malattie e consigli pratici.`,
+          '#/colture', 'Sfoglia le schede', false)}
+
+        <section class="premium-band">
+          <p class="eyebrow">Premium</p>
+          <h2>Il tuo orto ti avvisa</h2>
+          <p>Pioggia in arrivo? Caldo record o gelata? Ricevi ogni mattina gli avvisi meteo per il tuo comune e i lavori della settimana, con le aiuole sincronizzate su telefono e computer.</p>
+          <a class="btn primary big" href="#/account">Scopri il Premium</a>
+        </section>
+
+        <footer class="home-footer">
+          <a href="#/guida">Guida all'orto</a> · <a href="#/account">Account</a>
+          <p class="muted small">Dati colturali indicativi. Foto: Unsplash.</p>
+        </footer>
+      </div>`;
+  }
+  function bindHome(root) {
+    account.bindOggi(root);
+    const giu = root.querySelector('.hero-giu');
+    if (giu) giu.onclick = e => { e.preventDefault(); root.querySelector('#home-mese').scrollIntoView({ behavior: 'smooth' }); };
+  }
+
   function viewMese() {
     const m = state.mese, z = state.zona;
     const blocchi = ATTIVITA.map(a => {
@@ -339,7 +423,7 @@
   // ── Router ─────────────────────────────────────────────
   let lastRoute = '';
   function route() {
-    const h = location.hash.replace(/^#\/?/, '') || 'mese';
+    const h = location.hash.replace(/^#\/?/, '') || 'home';
     const [page, arg] = h.split('/');
     const view = document.getElementById('view');
     let html, bind = null, tab = page;
@@ -349,7 +433,9 @@
     else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
     else if (page === 'guida') { html = viewGuida(); }
     else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; }
-    else { html = viewMese(); bind = bindMese; tab = 'mese'; }
+    else if (page === 'mese') { html = viewMese(); bind = bindMese; }
+    else { html = viewHome(); bind = bindHome; tab = 'home'; }
+    document.body.classList.toggle('pagina-home', tab === 'home');
     view.innerHTML = html;
     if (bind) bind(view);
     document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
@@ -369,6 +455,10 @@
   velo.onclick = () => apriMenu(false);
   menu.onclick = e => { if (e.target.closest('a')) apriMenu(false); };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { apriMenu(false); menuBtn.focus(); } });
+  // In home l'intestazione è trasparente sopra la foto e diventa piena scorrendo.
+  const aggiornaTesta = () => document.body.classList.toggle('scorso', window.scrollY > 60);
+  window.addEventListener('scroll', aggiornaTesta, { passive: true });
+  aggiornaTesta();
 
   window.addEventListener('hashchange', () => { state.calZona = null; route(); });
   renderZone();

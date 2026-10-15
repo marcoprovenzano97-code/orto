@@ -3,7 +3,7 @@
   "short_name": "Orto",
   "description": "Schede colture, calendario di semina per zona e guida alla rotazione.",
   "lang": "it",
-  "start_url": "./#/mese",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f5efe6",
