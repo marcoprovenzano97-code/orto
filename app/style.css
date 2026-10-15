@@ -381,14 +381,15 @@ details[open] > summary { margin-bottom: 12px; }
 .home-corpo > .card { margin: 0; }
 
 /* ── Pagine interne in stile sito ────────────────────── */
-.banner { position: relative; min-height: clamp(300px, 48svh, 480px); display: flex; align-items: flex-end; color: #fff; overflow: hidden; }
+.banner { position: relative; min-height: clamp(220px, 26svh, 260px); display: flex; align-items: flex-end; color: #fff; overflow: hidden; }
 .banner .hero-img { object-position: center 55%; }
 .banner .hero-velo { background: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.08) 40%, rgba(18,12,6,.8) 100%); }
-.banner-testo { position: relative; width: 100%; max-width: 760px; margin: 0 auto; padding: 120px 16px 26px; }
-.banner h1 { font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.08; text-shadow: 0 2px 16px rgba(0,0,0,.35); }
+.banner-testo { position: relative; width: 100%; max-width: 760px; margin: 0 auto; padding: 84px 16px 18px; }
+@media (max-width: 600px) { .banner-testo { padding-top: 118px; } }
+.banner h1 { font-size: clamp(1.7rem, 4.6vw, 2.4rem); line-height: 1.08; text-shadow: 0 2px 16px rgba(0,0,0,.35); }
 .banner .eyebrow { color: #e8c98f; }
-.banner-sub { margin: 8px 0 0; font-size: 1.02rem; color: rgba(255,255,255,.9); max-width: 560px; }
-.crumbs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: .88rem; }
+.banner-sub { margin: 4px 0 0; font-size: .98rem; color: rgba(255,255,255,.9); max-width: 560px; }
+.crumbs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; font-size: .88rem; }
 .indietro {
   border: 1px solid rgba(255,255,255,.55); background: rgba(0,0,0,.25); color: #fff; backdrop-filter: blur(4px);
   font: inherit; font-weight: 600; padding: 5px 12px; border-radius: 999px; cursor: pointer;
