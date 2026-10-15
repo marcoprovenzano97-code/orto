@@ -167,7 +167,7 @@
 
   function rotazioneTesto(c) {
     if (PERENNI.has(c.id)) {
-      return `<p>Coltura <strong>perenne</strong>: resta nella stessa aiuola per più anni. Conviene dedicarle un cassone fuori dallo schema di rotazione.</p>`;
+      return `<p>Coltura <strong>perenne</strong>: resta nella stessa aiuola per più anni. Conviene dedicarle un'aiuola fuori dallo schema di rotazione.</p>`;
     }
     const i = ROTAZIONE.indexOf(c.esig);
     const prima = ESIG[ROTAZIONE[(i + 3) % 4]], dopo = ESIG[ROTAZIONE[(i + 1) % 4]];
@@ -177,7 +177,7 @@
         <dt>Meglio dopo</dt><dd>${prima.nome.toLowerCase()}</dd>
         <dt>Poi lascia il posto a</dt><dd>${dopo.nome.toLowerCase()}</dd>
       </dl>
-      <p class="note" style="margin-top:10px">Non riportare <strong>${FAM[c.fam].nome}</strong> nello stesso cassone prima di 3–4 anni: malattie e parassiti della famiglia restano nel terreno.</p>`;
+      <p class="note" style="margin-top:10px">Non riportare <strong>${FAM[c.fam].nome}</strong> nella stessa aiuola prima di 3–4 anni: malattie e parassiti della famiglia restano nel terreno.</p>`;
   }
 
   function viewColtura(id) {
@@ -203,7 +203,7 @@
           <div class="fact"><div class="k">Acqua</div><div class="v">${esc(c.acqua.freq)}</div></div>
           <div class="fact"><div class="k">Esposizione</div><div class="v">${esc(c.sole)}</div></div>
           <div class="fact"><div class="k">Distanze</div><div class="v">${c.dist[0]} cm sulla fila · ${c.dist[1]} cm tra file</div></div>
-          <div class="fact"><div class="k">Nel cassone</div><div class="v">${pianteMq(c)}</div></div>
+          <div class="fact"><div class="k">In aiuola</div><div class="v">${pianteMq(c)}</div></div>
           <div class="fact"><div class="k">Germinazione</div><div class="v">${esc(c.germ)}</div></div>
         </div>
 
@@ -275,15 +275,15 @@
     const fams = [...new Set(C.map(c => c.fam))];
     return `
       <div class="stack">
-        <h1 style="font-size:1.4rem;margin:4px 0">Guida all'orto in cassoni</h1>
+        <h1 style="font-size:1.4rem;margin:4px 0">Guida all'orto</h1>
 
         <section class="card">
           <div class="section-title"><h2>🔄 La rotazione in 4 anni</h2></div>
-          <p style="margin-top:0">Dividi l'orto in 4 gruppi di cassoni. Ogni anno ogni gruppo passa alla fase successiva: il terreno non si impoverisce e le malattie di una famiglia non si accumulano.</p>
+          <p style="margin-top:0">Dividi l'orto in 4 gruppi di aiuole (o settori). Ogni anno ogni gruppo passa alla fase successiva: il terreno non si impoverisce e le malattie di una famiglia non si accumulano.</p>
           <div class="rot">
             ${ROTAZIONE.map((e, i) => `<div class="step"><div class="n">Anno ${i + 1}</div><div class="t">${ESIG[e].nome}</div><div class="small muted">${ESIG[e].desc}</div><div class="small" style="margin-top:6px">${gruppo(e)}</div></div>`).join('')}
           </div>
-          <p class="note" style="margin-top:12px">Due regole: <strong>1)</strong> la stessa famiglia non torna nello stesso cassone prima di 3–4 anni; <strong>2)</strong> dopo una coltura molto esigente metti una meno esigente, e chiudi il ciclo con le leguminose che riportano azoto. Le perenni (asparago, carciofo, fragola) vanno in cassoni dedicati.</p>
+          <p class="note" style="margin-top:12px">Due regole: <strong>1)</strong> la stessa famiglia non torna nella stessa aiuola prima di 3–4 anni; <strong>2)</strong> dopo una coltura molto esigente metti una meno esigente, e chiudi il ciclo con le leguminose che riportano azoto. Le perenni (asparago, carciofo, fragola) vanno in aiuole dedicate.</p>
         </section>
 
         <section class="card">
@@ -292,9 +292,9 @@
         </section>
 
         <section class="card">
-          <div class="section-title"><h2>💧 Irrigare nei cassoni</h2></div>
+          <div class="section-title"><h2>💧 Irrigazione</h2></div>
           <ul class="clean">
-            <li>Il terreno rialzato drena e si scalda di più: asciuga <strong>prima</strong> della piena terra. Controlla col dito: se a 3–5 cm è asciutto, è ora di bagnare.</li>
+            <li>Controlla col dito: se a 3–5 cm il terreno è asciutto, è ora di bagnare. Cassoni rialzati e soprattutto vasi drenano e si scaldano di più: asciugano <strong>prima</strong> della piena terra.</li>
             <li>Meglio poche irrigazioni abbondanti che tante leggere: l'acqua deve arrivare in profondità e spingere le radici verso il basso.</li>
             <li>Irriga al mattino presto o la sera, sempre al piede. Le foglie bagnate favoriscono funghi (peronospora, oidio).</li>
             <li>Pacciama con paglia o foglie secche: dimezza l'acqua necessaria e tiene a bada le erbacce.</li>

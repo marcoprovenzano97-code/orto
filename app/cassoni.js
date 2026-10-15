@@ -4,6 +4,13 @@ window.OrtoCassoni = function (ctx) {
   'use strict';
   const { C, BY_ID, FAM, ESIG, ZONE, store, state, esc, inMese, famDot, chip, relazioni, PERENNI, ROTAZIONE, areaPianta, rerender } = ctx;
 
+  const TIPI = {
+    cassone: { nome: 'Cassone rialzato' },
+    terra:   { nome: 'Piena terra' },
+    vaso:    { nome: 'Vaso / fioriera' }
+  };
+  const tipoDi = cs => TIPI[cs.tipo] ? cs.tipo : 'cassone';
+
   const CELLA = 30;                     // lato della cella in cm
   const CELLA_AREA = CELLA * CELLA;
   const MAX_CELLE = 24;                 // per lato
@@ -74,7 +81,7 @@ window.OrtoCassoni = function (ctx) {
   }
   function valuta(c, cs, k, fr, rot) {
     if (fr.has(c.fam) && !cs.perenne) return { cat: 'evita', motivo: `${FAM[c.fam].nome} già qui in ${etichettaBreve(fr.get(c.fam))}` };
-    if (PERENNI.has(c.id) && !cs.perenne) return { cat: 'possibile', motivo: 'perenne: meglio un cassone dedicato' };
+    if (PERENNI.has(c.id) && !cs.perenne) return { cat: 'possibile', motivo: 'perenne: meglio un\'aiuola dedicata' };
     if (rot && c.esig === rot.tocca) return { cat: 'consigliata', motivo: ESIG[c.esig].nome };
     return { cat: 'possibile', motivo: ESIG[c.esig].nome };
   }
@@ -132,7 +139,7 @@ window.OrtoCassoni = function (ctx) {
     const fr = famRecenti(cs, k);
     if (!cs.perenne) {
       const famUsate = new Set(coltureDi(p).map(id => BY_ID[id].fam));
-      famUsate.forEach(f => { if (fr.has(f)) avvisi.push({ t: 'bad', h: `Rotazione: le ${FAM[f].nome} erano già in questo cassone in ${etichettaBreve(fr.get(f))}.` }); });
+      famUsate.forEach(f => { if (fr.has(f)) avvisi.push({ t: 'bad', h: `Rotazione: le ${FAM[f].nome} erano già in questa aiuola in ${etichettaBreve(fr.get(f))}.` }); });
     }
     coltureDi(p).forEach(id => {
       if (!adatta(BY_ID[id], k)) avvisi.push({ t: 'info', h: `${nome(id)} di solito non si mette a dimora in questa stagione (zona ${esc(ZONE[state.zona].nome)}).` });
@@ -149,7 +156,14 @@ window.OrtoCassoni = function (ctx) {
   function isoSVG(cs, k, mini) {
     const { cols, rows } = dimensioni(cs);
     const p = piano(cs, k) || { celle: {} };
-    const a = 20, b = 11.5, H = 15, G = 0.75, GH = 22;
+    const tipo = tipoDi(cs);
+    // Altezza e colori dei bordi: legno (cassone), terra smossa (piena terra), terracotta (vaso)
+    const stile = {
+      cassone: { H: 15, sx: '#a06f45', dx: '#82573a', bordo: '#c08c5c', bw: 3.5, assi: true, prato: '#a9c97a' },
+      terra:   { H: 4,  sx: '#6e4f36', dx: '#5a402b', bordo: '#7a5a3e', bw: 1.5, assi: false, prato: '#a9c97a' },
+      vaso:    { H: 24, sx: '#c46a43', dx: '#a4532f', bordo: '#e08f66', bw: 4, assi: true, prato: '#d8cdbd' }
+    }[tipo];
+    const a = 20, b = 11.5, H = stile.H, G = 0.75, GH = 22;
     const P = (c, r, z = 0) => [(c - r) * a, (c + r) * b - z];
     const giu = (q, d) => [q[0], q[1] + d];
     const pt = qs => qs.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ');
@@ -163,15 +177,15 @@ window.OrtoCassoni = function (ctx) {
       s += lato(P(g0, gr), P(gc, gr), d0, d1, sx);
       s += lato(P(gc, g0), P(gc, gr), d0, d1, dx);
     });
-    s += poly([P(g0, g0), P(gc, g0), P(gc, gr), P(g0, gr)], '#a9c97a');
+    s += poly([P(g0, g0), P(gc, g0), P(gc, gr), P(g0, gr)], stile.prato);
 
     // Cassone: fianchi in legno con le assi
-    s += poly([P(0, rows, H), P(cols, rows, H), P(cols, rows), P(0, rows)], '#a06f45');
-    s += poly([P(cols, 0, H), P(cols, rows, H), P(cols, rows), P(cols, 0)], '#82573a');
+    s += poly([P(0, rows, H), P(cols, rows, H), P(cols, rows), P(0, rows)], stile.sx);
+    s += poly([P(cols, 0, H), P(cols, rows, H), P(cols, rows), P(cols, 0)], stile.dx);
     const asse = (q1, q2) => `<line x1="${q1[0].toFixed(1)}" y1="${(q1[1]).toFixed(1)}" x2="${q2[0].toFixed(1)}" y2="${q2[1].toFixed(1)}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`;
-    s += asse(P(0, rows, H / 2), P(cols, rows, H / 2)) + asse(P(cols, 0, H / 2), P(cols, rows, H / 2));
+    if (stile.assi) s += asse(P(0, rows, H / 2), P(cols, rows, H / 2)) + asse(P(cols, 0, H / 2), P(cols, rows, H / 2));
     // Terra con bordo superiore delle assi
-    s += poly([P(0, 0, H), P(cols, 0, H), P(cols, rows, H), P(0, rows, H)], '#5e3f29', 'stroke="#c08c5c" stroke-width="3.5" stroke-linejoin="round"');
+    s += poly([P(0, 0, H), P(cols, 0, H), P(cols, rows, H), P(0, rows, H)], '#5e3f29', `stroke="${stile.bordo}" stroke-width="${stile.bw}" stroke-linejoin="round"`);
     if (!mini) {
       for (let c = 1; c < cols; c++) s += `<line x1="${P(c, 0, H)[0]}" y1="${P(c, 0, H)[1]}" x2="${P(c, rows, H)[0]}" y2="${P(c, rows, H)[1]}" stroke="rgba(255,255,255,.07)"/>`;
       for (let r = 1; r < rows; r++) s += `<line x1="${P(0, r, H)[0]}" y1="${P(0, r, H)[1]}" x2="${P(cols, r, H)[0]}" y2="${P(cols, r, H)[1]}" stroke="rgba(255,255,255,.07)"/>`;
@@ -205,7 +219,7 @@ window.OrtoCassoni = function (ctx) {
         <span class="thumb">${isoSVG(cs, OGGI, true)}</span>
         <span class="body">
           <span class="name">${esc(cs.nome)}</span>
-          <span class="muted small" style="display:block">${cs.larghezza} × ${cs.lunghezza} cm · ${cols}×${rows} celle${cs.perenne ? ' · perenni' : ''}</span>
+          <span class="muted small" style="display:block">${TIPI[tipoDi(cs)].nome} · ${cs.larghezza} × ${cs.lunghezza} cm${cs.perenne ? ' · perenni' : ''}</span>
           <span class="meta">
             ${col.length ? `<span class="pill">${col.map(id => BY_ID[id].emoji).join(' ')}</span>` : '<span class="pill">vuoto questa stagione</span>'}
             ${rot ? `<span class="pill now-badge">Tocca a: ${esc(ESIG[rot.tocca].nome.toLowerCase())}</span>` : ''}
@@ -217,20 +231,20 @@ window.OrtoCassoni = function (ctx) {
     return `
       <div class="stack">
         <div>
-          <h1 style="font-size:1.4rem;margin:4px 0 2px">I miei cassoni</h1>
+          <h1 style="font-size:1.4rem;margin:4px 0 2px">Il mio orto</h1>
           <p class="muted small" style="margin:0">Stagione attuale: ${etichetta(OGGI)} · zona ${esc(ZONE[state.zona].nome)}</p>
         </div>
         ${dati.cassoni.length ? `<div class="list">${righe}</div>` : `
           <div class="card">
-            <p style="margin-top:0"><strong>Registra i tuoi cassoni</strong> per avere:</p>
+            <p style="margin-top:0"><strong>Crea la tua prima aiuola</strong> qui sotto (cassone rialzato, piena terra o vaso): dentro trovi</p>
             <ul class="clean">
               <li>i suggerimenti di rotazione basati su cosa c'era negli anni scorsi;</li>
-              <li>il progetto su griglia (celle da 30 cm) con il controllo di consociazioni, spazi e ombra.</li>
+              <li><strong>✏️ Disegna l'aiuola</strong>: una griglia (celle da 30 cm) dove disponi le colture, con il controllo di consociazioni, spazi e ombra e la vista 3D.</li>
             </ul>
           </div>`}
         <details class="card" id="nuovo" ${dati.cassoni.length ? '' : 'open'}>
-          <summary><strong>+ Nuovo cassone</strong></summary>
-          ${formCassone({ nome: `Cassone ${dati.cassoni.length + 1}`, larghezza: 120, lunghezza: 240 }, 'Aggiungi')}
+          <summary><strong>+ Nuova aiuola</strong></summary>
+          ${formCassone({ nome: `Aiuola ${dati.cassoni.length + 1}`, tipo: 'cassone', larghezza: 120, lunghezza: 240 }, 'Aggiungi')}
         </details>
         <section class="card">
           <div class="section-title"><h2>💾 Backup</h2></div>
@@ -245,16 +259,18 @@ window.OrtoCassoni = function (ctx) {
   function formCassone(cs, azione) {
     return `<form class="form" data-form="cassone">
       <label>Nome<input name="nome" required maxlength="40" value="${esc(cs.nome)}"></label>
+      <label>Tipo<select name="tipo">${Object.entries(TIPI).map(([k, t]) => `<option value="${k}" ${tipoDi(cs) === k ? 'selected' : ''}>${t.nome}</option>`).join('')}</select></label>
       <div class="two">
         <label>Larghezza (cm)<input name="larghezza" type="number" min="30" max="${MAX_CELLE * CELLA}" step="10" required value="${cs.larghezza}"></label>
         <label>Lunghezza (cm)<input name="lunghezza" type="number" min="30" max="${MAX_CELLE * CELLA}" step="10" required value="${cs.lunghezza}"></label>
       </div>
-      <label class="toggle"><input type="checkbox" name="perenne" ${cs.perenne ? 'checked' : ''}> Cassone per colture perenni (asparago, carciofo, fragola): escluso dalla rotazione</label>
+      <label class="toggle"><input type="checkbox" name="perenne" ${cs.perenne ? 'checked' : ''}> Aiuola per colture perenni (asparago, carciofo, fragola): esclusa dalla rotazione</label>
       <button class="btn primary" type="submit">${azione}</button>
     </form>`;
   }
   const leggiForm = f => ({
-    nome: f.nome.value.trim() || 'Cassone',
+    nome: f.nome.value.trim() || 'Aiuola',
+    tipo: TIPI[f.tipo.value] ? f.tipo.value : 'cassone',
     larghezza: Math.max(30, Math.min(MAX_CELLE * CELLA, +f.larghezza.value || 120)),
     lunghezza: Math.max(30, Math.min(MAX_CELLE * CELLA, +f.lunghezza.value || 240)),
     perenne: f.perenne.checked
@@ -281,7 +297,7 @@ window.OrtoCassoni = function (ctx) {
       file.text().then(t => {
         const j = JSON.parse(t);
         if (!Array.isArray(j.cassoni)) throw new Error('formato');
-        if (!confirm(`Importare ${j.cassoni.length} cassoni? I dati attuali su questo dispositivo verranno sostituiti.`)) return;
+        if (!confirm(`Importare ${j.cassoni.length} aiuole? I dati attuali su questo dispositivo verranno sostituiti.`)) return;
         dati.cassoni = j.cassoni; salva(); rerender();
       }).catch(() => alert('File non valido: serve un backup esportato da questa app.'));
     };
@@ -292,22 +308,23 @@ window.OrtoCassoni = function (ctx) {
 
   function viewCassone(id) {
     const cs = trova(id);
-    if (!cs) return `<p>Cassone non trovato. <a href="#/cassoni">Torna ai cassoni</a></p>`;
+    if (!cs) return `<p>Aiuola non trovata. <a href="#/cassoni">Torna al tuo orto</a></p>`;
     const k = state.stagione;
     const { cols, rows } = dimensioni(cs);
     return `
-      <a class="back" href="#/cassoni">‹ I miei cassoni</a>
+      <a class="back" href="#/cassoni">‹ Il mio orto</a>
       <div class="stack">
         <div class="iso-hero">
           <div class="iso-stage">${isoSVG(cs, k)}</div>
           <h1>${esc(cs.nome)}</h1>
           <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'pronto da progettare')(coltureDi(piano(cs, k)).length)} · zona ${esc(ZONE[state.zona].nome)}</p>
-          <div class="meta"><span class="pill">${cs.larghezza} × ${cs.lunghezza} cm</span><span class="pill">${cols}×${rows} celle da ${CELLA} cm</span>${cs.perenne ? '<span class="pill">Perenni</span>' : ''}</div>
+          <div class="meta"><span class="pill">${TIPI[tipoDi(cs)].nome}</span><span class="pill">${cs.larghezza} × ${cs.lunghezza} cm</span><span class="pill">${cols}×${rows} celle da ${CELLA} cm</span>${cs.perenne ? '<span class="pill">Perenni</span>' : ''}</div>
+          <button class="btn primary hero-cta" id="vaiDisegna">✏️ Disegna l'aiuola</button>
         </div>
         <details class="card">
-          <summary>Modifica cassone</summary>
+          <summary>Modifica aiuola</summary>
           ${formCassone(cs, 'Salva')}
-          <button class="btn danger" id="elimina" style="margin-top:10px">Elimina cassone</button>
+          <button class="btn danger" id="elimina" style="margin-top:10px">Elimina aiuola</button>
         </details>
 
         <div class="month-head">
@@ -322,7 +339,7 @@ window.OrtoCassoni = function (ctx) {
         <section class="card" id="rotCard">${htmlRotazione(cs, k)}</section>
 
         <section class="card">
-          <div class="section-title"><h2>✏️ Progetto</h2></div>
+          <div class="section-title" id="disegna"><h2>✏️ Disegna l'aiuola</h2></div>
           <div id="palette">${htmlPalette(cs, k)}</div>
           <div class="grid-wrap">
             <div class="nord">↑ Nord</div>
@@ -337,7 +354,7 @@ window.OrtoCassoni = function (ctx) {
         </section>
 
         <section class="card">
-          <div class="section-title"><h2>🗂️ Storico del cassone</h2></div>
+          <div class="section-title"><h2>🗂️ Storico dell'aiuola</h2></div>
           ${htmlStorico(cs)}
           ${ui.registra ? htmlRegistra() : `<button class="btn" id="apriRegistra" style="margin-top:10px">+ Registra una stagione passata</button>`}
         </section>
@@ -345,7 +362,7 @@ window.OrtoCassoni = function (ctx) {
   }
 
   function htmlRotazione(cs, k) {
-    if (cs.perenne) return `<div class="section-title"><h2>🔄 Rotazione</h2></div><p style="margin:0">Cassone per colture perenni: resta fuori dalla rotazione.</p>`;
+    if (cs.perenne) return `<div class="section-title"><h2>🔄 Rotazione</h2></div><p style="margin:0">Aiuola per colture perenni: resta fuori dalla rotazione.</p>`;
     const rot = rotazione(cs, k), fr = famRecenti(cs, k);
     const cand = C.filter(c => adatta(c, k)).map(c => ({ c, v: valuta(c, cs, k, fr, rot) }));
     const gruppo = cat => cand.filter(x => x.v.cat === cat).sort((a, b) => a.c.nome.localeCompare(b.c.nome));
@@ -356,7 +373,7 @@ window.OrtoCassoni = function (ctx) {
       h += cons.length ? `<p class="muted small" style="margin:0 0 6px">Consigliate in questa stagione</p><div class="chips">${cons.map(x => chip(x.c, 'good')).join('')}</div>`
         : `<p class="empty">Nessuna coltura di questo gruppo si mette a dimora in questa stagione: scegli tra le altre, evitando le famiglie già usate.</p>`;
     } else {
-      h += `<p style="margin:0">Nessuno storico per questo cassone. Registra cosa c'era nelle stagioni passate (qui sotto, in "Storico") oppure disegna il progetto: dalla prossima stagione riceverai i suggerimenti di rotazione.</p>`;
+      h += `<p style="margin:0">Nessuno storico per questa aiuola. Registra cosa c'era nelle stagioni passate (qui sotto, in "Storico") oppure disegna l'aiuola qui sotto: dalla prossima stagione riceverai i suggerimenti di rotazione.</p>`;
     }
     if (evita.length) {
       h += `<p class="muted small" style="margin:12px 0 6px">Da evitare (famiglia coltivata qui di recente)</p><div class="chips">${evita.map(x => chip(x.c, 'bad')).join('')}</div>`;
@@ -372,7 +389,7 @@ window.OrtoCassoni = function (ctx) {
       .sort((a, b) => ordine[a.v.cat] - ordine[b.v.cat] || a.c.nome.localeCompare(b.c.nome));
     const sel = ui.pennello;
     return `
-      <p class="muted small" style="margin:0 0 8px">${sel ? (sel === 'gomma' ? 'Tocca o trascina sulle celle per svuotarle.' : `Tocca o trascina sulle celle per piantare <strong>${nome(sel)}</strong>.`) : 'Scegli una coltura, poi tocca le celle del cassone (ogni cella = 30×30 cm).'}</p>
+      <p class="muted small" style="margin:0 0 8px">${sel ? (sel === 'gomma' ? 'Tocca o trascina sulle celle per svuotarle.' : `Tocca o trascina sulle celle per piantare <strong>${nome(sel)}</strong>.`) : 'Scegli una coltura, poi tocca le celle dell’aiuola (ogni cella = 30×30 cm).'}</p>
       <div class="palette">
         <button class="pbtn" data-p="gomma" aria-pressed="${sel === 'gomma'}">🧽 Gomma</button>
         ${lista.map(x => `<button class="pbtn ${x.v.cat}" data-p="${x.c.id}" aria-pressed="${sel === x.c.id}" title="${esc(x.v.motivo)}">${x.c.emoji} ${esc(x.c.nome)}${x.v.cat === 'consigliata' ? ' ★' : x.v.cat === 'evita' ? ' ⚠' : ''}</button>`).join('')}
@@ -421,7 +438,7 @@ window.OrtoCassoni = function (ctx) {
     const annoOggi = +OGGI.split('-')[0];
     const anni = []; for (let a = annoOggi; a >= annoOggi - 5; a--) anni.push(a);
     return `<form class="form registra" data-form="registra">
-      <p style="margin:0">Indica cosa hai coltivato in questo cassone in una stagione passata (senza disegnare la griglia).</p>
+      <p style="margin:0">Indica cosa hai coltivato in questa aiuola in una stagione passata (senza disegnare la griglia).</p>
       <div class="two">
         <label>Anno<select name="anno">${anni.map(a => `<option ${a === annoOggi - 1 ? 'selected' : ''}>${a}</option>`).join('')}</select></label>
         <label>Stagione<select name="stag"><option value="PE">Primavera-estate</option><option value="AI">Autunno-inverno</option></select></label>
@@ -445,6 +462,7 @@ window.OrtoCassoni = function (ctx) {
       root.querySelector('.iso-stage').innerHTML = isoSVG(cs, k);
     }
     aggiorna();
+    root.querySelector('#vaiDisegna').onclick = () => root.querySelector('#disegna').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     // Modifica / elimina
     const f = root.querySelector('form[data-form="cassone"]');
@@ -528,7 +546,7 @@ window.OrtoCassoni = function (ctx) {
     // Storico
     root.querySelectorAll('[data-vai]').forEach(b => b.onclick = () => { state.stagione = b.dataset.vai; rerender(); });
     root.querySelectorAll('[data-cancella]').forEach(b => b.onclick = () => {
-      if (!confirm(`Cancellare ${etichetta(b.dataset.cancella)} dallo storico di questo cassone?`)) return;
+      if (!confirm(`Cancellare ${etichetta(b.dataset.cancella)} dallo storico di questa aiuola?`)) return;
       delete cs.piani[b.dataset.cancella]; salva(); rerender();
     });
     const apri = root.querySelector('#apriRegistra');

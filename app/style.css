@@ -282,3 +282,5 @@ details[open] > summary { margin-bottom: 12px; }
 .month-head h1, .hero h1 { font-weight: 600; }
 .card { border-radius: var(--radius); }
 .row { border-radius: 14px; box-shadow: var(--shadow); }
+.iso-hero .hero-cta { margin-top: 14px; background: #f8f1e6; border-color: #f8f1e6; color: #3d2618; }
+#disegna { scroll-margin-top: 120px; }
