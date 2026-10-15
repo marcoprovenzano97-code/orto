@@ -6,12 +6,22 @@ window.OrtoAccount = function (ctx) {
   const { esc, store, state, ZONE } = ctx;
   const CFG = window.ORTO_CONFIG || {};
   const attivo = !!(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
+  // Il link "password dimenticata" torna qui con #access_token=…&type=recovery (o #error=… se
+  // scaduto/già usato): va letto prima che la libreria lo consumi e pulisca l'indirizzo.
+  const hashIniziale = location.hash;
+  const daRecupero = /type=recovery/.test(hashIniziale);
+  const linkNonValido = /error_description=|error=access_denied/.test(hashIniziale);
   const sb = attivo ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
     // detectSessionInUrl: legge il link "password dimenticata" (#access_token=…&type=recovery)
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' }
   }) : null;
 
-  const st = { utente: null, profilo: null, pronto: !attivo, fase: 'email', email: '', errore: '', avviso: '' };
+  const st = {
+    utente: null, profilo: null, pronto: !attivo, email: '', avviso: '',
+    fase: daRecupero ? 'nuovaPassword' : 'email',
+    errore: linkNonValido ? 'Il link per reimpostare la password è scaduto o è già stato usato (a volte il programma di posta lo apre da solo per controllarlo). Richiedine uno nuovo qui sotto con "Password dimenticata?" e aprilo subito.' : ''
+  };
+  let entratoPer = null;       // evita di caricare due volte lo stesso utente all'avvio
   let fonte = null;            // { get(), set(dati) } fornito dal modulo aiuole
   let timer = null;
 
@@ -29,28 +39,32 @@ window.OrtoAccount = function (ctx) {
     if (data && data.zona && ZONE[data.zona] && data.zona !== state.zona) ctx.impostaZona(data.zona);
   }
   async function entrato() {
+    if (!st.utente || entratoPer === st.utente.id) return;
+    entratoPer = st.utente.id;
     await caricaProfilo();
     await sincronizza();
     ctx.rerender();
   }
   async function avvio() {
     if (!attivo) return;
-    const { data } = await sb.auth.getSession();
-    st.utente = (data.session && data.session.user) || null;
-    if (st.utente) await entrato();
-    st.pronto = true;
-    ctx.rerender();
+    // In ascolto subito: l'evento PASSWORD_RECOVERY arriva durante l'inizializzazione.
     sb.auth.onAuthStateChange((evento, session) => {
-      if (evento === 'PASSWORD_RECOVERY') {
-        st.fase = 'nuovaPassword';
-        setTimeout(() => { location.hash = '#/account'; ctx.rerender(); }, 0);
-      }
+      if (evento === 'PASSWORD_RECOVERY') st.fase = 'nuovaPassword';
       const prima = st.utente && st.utente.id;
       st.utente = (session && session.user) || null;
       // Le chiamate a Supabase vanno fatte fuori dal callback (evita blocchi della libreria).
       if (st.utente && st.utente.id !== prima) setTimeout(entrato, 0);
-      if (!st.utente && prima) { st.profilo = null; setTimeout(ctx.rerender, 0); }
+      if (!st.utente && prima) { st.profilo = null; entratoPer = null; setTimeout(ctx.rerender, 0); }
     });
+    const { data } = await sb.auth.getSession();
+    st.utente = (data.session && data.session.user) || null;
+    // Dopo un link dall'email: indirizzo pulito e pagina Account (nuova password o messaggio d'errore).
+    if (daRecupero || linkNonValido || /^#(access_token|error)/.test(location.hash)) {
+      history.replaceState(null, '', location.pathname + location.search + '#/account');
+    }
+    if (st.utente) await entrato();
+    st.pronto = true;
+    ctx.rerender();
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizza(); });
   }
 
@@ -258,7 +272,15 @@ window.OrtoAccount = function (ctx) {
         <button class="btn" id="syncOra">Sincronizza ora</button>
       </section>`;
     }
-    h += `<button class="btn" id="esci">Esci</button></div>`;
+    h += `
+      <details class="card">
+        <summary>🔑 Cambia password</summary>
+        <form class="form" id="formNuovaPw">
+          <label>Nuova password<input type="password" name="pw" required minlength="8" autocomplete="new-password" placeholder="almeno 8 caratteri"></label>
+          <button class="btn primary" type="submit">Salva password</button>
+        </form>
+      </details>
+      <button class="btn" id="esci">Esci</button></div>`;
     return h;
   }
 
