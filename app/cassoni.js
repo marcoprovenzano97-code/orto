@@ -236,10 +236,7 @@ window.OrtoCassoni = function (ctx) {
     }).join('');
     return `
       <div class="stack">
-        <div>
-          <h1 style="font-size:1.4rem;margin:4px 0 2px">Il mio orto</h1>
-          <p class="muted small" style="margin:0">Stagione attuale: ${etichetta(OGGI)} · zona ${esc(ZONE[state.zona].nome)}</p>
-        </div>
+        <p class="muted small" style="margin:0">Stagione attuale: <strong>${etichetta(OGGI)}</strong></p>
         ${dati.cassoni.length ? `<div class="list">${righe}</div>` : `
           <div class="card">
             <p style="margin-top:0"><strong>Crea la tua prima aiuola</strong> qui sotto (cassone rialzato, piena terra o vaso): dentro trovi</p>
@@ -325,13 +322,10 @@ window.OrtoCassoni = function (ctx) {
     const k = state.stagione;
     const { cols, rows } = dimensioni(cs);
     return `
-      <a class="back" href="#/cassoni">‹ Il mio orto</a>
       <div class="stack">
         <div class="iso-hero">
           <div class="iso-stage">${isoSVG(cs, k)}</div>
-          <h1>${esc(cs.nome)}</h1>
-          <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'pronto da progettare')(coltureDi(piano(cs, k)).length)} · zona ${esc(ZONE[state.zona].nome)}</p>
-          <div class="meta"><span class="pill">${TIPI[tipoDi(cs)].nome}</span><span class="pill">${cs.larghezza} × ${cs.lunghezza} cm</span><span class="pill">${cols}×${rows} celle da ${CELLA} cm</span>${cs.perenne ? '<span class="pill">Perenni</span>' : ''}</div>
+          <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'Pronta da progettare')(coltureDi(piano(cs, k)).length)} · ${cols}×${rows} celle da ${CELLA} cm${cs.perenne ? ' · perenni' : ''}</p>
           <button class="btn primary hero-cta" id="vaiDisegna">✏️ Disegna l'aiuola</button>
         </div>
         <details class="card">
@@ -636,6 +630,11 @@ window.OrtoCassoni = function (ctx) {
   return {
     viewLista, bindLista, viewCassone, bindCassone,
     getDati: () => dati,
+    // Dati per la testata della pagina di un'aiuola.
+    info(id) {
+      const cs = trova(id);
+      return cs && { nome: cs.nome, tipo: tipoDi(cs), tipoNome: TIPI[tipoDi(cs)].nome, larghezza: cs.larghezza, lunghezza: cs.lunghezza, stagione: etichetta(state.stagione) };
+    },
     // Sostituisce i dati locali con quelli arrivati dal cloud (senza rimandarli indietro).
     setDati(n) {
       dati.cassoni = Array.isArray(n && n.cassoni) ? n.cassoni : [];

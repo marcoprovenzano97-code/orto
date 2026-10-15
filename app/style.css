@@ -319,13 +319,13 @@ details[open] > summary { margin-bottom: 12px; }
 
 /* ── Home: pagina d'apertura con foto ────────────────── */
 .brand-link { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
-.pagina-home main { max-width: none; padding: 0; }
-.pagina-home .topbar {
+.pagina-foto main { max-width: none; padding: 0; }
+.pagina-foto .topbar {
   position: fixed; left: 0; right: 0; top: 0;
   background: linear-gradient(180deg, rgba(20,14,8,.55) 0%, rgba(20,14,8,0) 100%);
   transition: background .25s, box-shadow .25s;
 }
-.pagina-home.scorso .topbar { background: var(--header-bg); box-shadow: 0 2px 12px rgba(0,0,0,.2); }
+.pagina-foto.scorso .topbar { background: var(--header-bg); box-shadow: 0 2px 12px rgba(0,0,0,.2); }
 .eyebrow { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--gold); margin: 0 0 8px; }
 
 .hero { position: relative; min-height: 100svh; display: flex; align-items: flex-end; color: #fff; overflow: hidden; }
@@ -379,3 +379,24 @@ details[open] > summary { margin-bottom: 12px; }
 .home-footer { text-align: center; color: var(--muted); }
 .home-footer a { color: var(--text); }
 .home-corpo > .card { margin: 0; }
+
+/* ── Pagine interne in stile sito ────────────────────── */
+.banner { position: relative; min-height: clamp(300px, 48svh, 480px); display: flex; align-items: flex-end; color: #fff; overflow: hidden; }
+.banner .hero-img { object-position: center 55%; }
+.banner .hero-velo { background: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.08) 40%, rgba(18,12,6,.8) 100%); }
+.banner-testo { position: relative; width: 100%; max-width: 760px; margin: 0 auto; padding: 120px 16px 26px; }
+.banner h1 { font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.08; text-shadow: 0 2px 16px rgba(0,0,0,.35); }
+.banner .eyebrow { color: #e8c98f; }
+.banner-sub { margin: 8px 0 0; font-size: 1.02rem; color: rgba(255,255,255,.9); max-width: 560px; }
+.crumbs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; font-size: .88rem; }
+.indietro {
+  border: 1px solid rgba(255,255,255,.55); background: rgba(0,0,0,.25); color: #fff; backdrop-filter: blur(4px);
+  font: inherit; font-weight: 600; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+}
+.indietro:hover { background: rgba(0,0,0,.4); }
+.crumbs-path { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: rgba(255,255,255,.85); }
+.crumbs-path a { color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.4); }
+.crumbs-path .sep { opacity: .6; }
+.pagina-corpo { max-width: 760px; margin: 0 auto; padding: 22px 16px 48px; }
+.lead { font-size: 1.08rem; margin: 0; }
+.iso-hero .tagline { margin: 4px 0 0; }

@@ -191,7 +191,7 @@ window.OrtoAccount = function (ctx) {
     ['🧺', 'Diario dei raccolti', 'quanto hai raccolto, aiuola per aiuola']
   ];
   function viewAccount() {
-    const testa = `<h1 style="font-size:1.4rem;margin:4px 0 12px">Account</h1>`;
+    const testa = '';   // il titolo è nella testata con foto
     if (!attivo) return testa + `<div class="card"><p style="margin:0">Gli account e il Premium sono in arrivo. Per ora l'app funziona tutta su questo dispositivo.</p></div>`;
     if (!st.pronto) return testa + '<p class="muted">Caricamento…</p>';
     const msg = (st.errore ? `<p class="note err">${esc(st.errore)}</p>` : '') + (st.avviso ? `<p class="note">${esc(st.avviso)}</p>` : '');

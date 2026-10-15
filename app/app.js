@@ -78,12 +78,7 @@
 
   // ── Viste ──────────────────────────────────────────────
   // Foto reali da Unsplash (licenza gratuita anche per uso commerciale).
-  const FOTO = {
-    copertina: '1591857177580-dc82b9ac4e1e',   // lattuga ed erba cipollina in un cassone di legno
-    aiuole:    '1601001815894-4bb6c81416d7',   // persona al lavoro tra aiuole rialzate
-    semina:    '1597868165956-03a6827955b1',   // mani che piantano una piantina
-    raccolto:  '1624668430039-0175a0fbf006'    // cassetta di legno con il raccolto
-  };
+  const FOTO = window.FOTO_PAGINE;   // data/foto.js
   const foto = (id, w) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=72`;
   const img = (id, alt, cls, sizes) =>
     `<img class="${cls}" src="${foto(id, 1000)}" srcset="${[600, 1000, 1600, 2200].map(w => `${foto(id, w)} ${w}w`).join(', ')}" sizes="${sizes}" alt="${esc(alt)}" loading="${cls === 'hero-img' ? 'eager' : 'lazy'}" decoding="async">`;
@@ -273,16 +268,9 @@
     const amiche = relazioni(c, 'amiche'), nemiche = relazioni(c, 'nemiche');
     const stessaFam = C.filter(o => o.fam === c.fam && o.id !== c.id);
     return `
-      <a class="back" href="#/colture">‹ Colture</a>
       <div class="stack">
-        <div class="hero">
-          <div class="em">${c.emoji}</div>
-          <div>
-            <h1>${esc(c.nome)}</h1>
-            <div class="meta">${famPill(c.fam)}<span class="pill">${esc(ESIG[c.esig].nome)}</span>${PERENNI.has(c.id) ? '<span class="pill">Perenne</span>' : ''}</div>
-          </div>
-        </div>
-        <p style="margin:12px 0 0">${esc(c.desc)}</p>
+        <div class="meta">${famPill(c.fam)}<span class="pill">${esc(ESIG[c.esig].nome)}</span>${PERENNI.has(c.id) ? '<span class="pill">Perenne</span>' : ''}</div>
+        <p class="lead">${esc(c.desc)}</p>
 
         <div class="facts">
           <div class="fact"><div class="k">Ciclo</div><div class="v">${esc(c.ciclo)}</div></div>
@@ -361,7 +349,6 @@
     const fams = [...new Set(C.map(c => c.fam))];
     return `
       <div class="stack">
-        <h1 style="font-size:1.4rem;margin:4px 0">Guida all'orto</h1>
 
         <section class="card">
           <div class="section-title"><h2>🔄 La rotazione in 4 anni</h2></div>
@@ -420,6 +407,55 @@
   });
   account.collega({ get: cassoni.getDati, set: cassoni.setDati });
 
+  // ── Testata delle pagine: foto, percorso e Indietro ────
+  // crumbs: [[etichetta, link], ...]; l'ultima voce è la pagina corrente.
+  function banner({ foto: id, eyebrow, titolo, sub, crumbs }) {
+    const percorso = [['Home', '#/'], ...crumbs];
+    const genitore = percorso[percorso.length - 2][1];
+    return `
+      <section class="banner">
+        ${img(id, '', 'hero-img', '100vw')}
+        <div class="hero-velo"></div>
+        <div class="banner-testo">
+          <nav class="crumbs" aria-label="Percorso">
+            <button class="indietro" type="button" data-indietro="${genitore}">‹ Indietro</button>
+            <span class="crumbs-path">${percorso.map(([t, l], i) => i < percorso.length - 1 ? `<a href="${l}">${esc(t)}</a>` : `<span aria-current="page">${esc(t)}</span>`).join('<span class="sep">›</span>')}</span>
+          </nav>
+          ${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ''}
+          <h1>${esc(titolo)}</h1>
+          ${sub ? `<p class="banner-sub">${sub}</p>` : ''}
+        </div>
+      </section>`;
+  }
+  function testata(page, arg) {
+    const zona = `zona ${esc(ZONE[state.zona].nome)}`;
+    switch (page) {
+      case 'mese': return { foto: FOTO.semina, eyebrow: 'Calendario · ' + zona, titolo: 'Calendario dell\'orto', sub: 'Cosa seminare, trapiantare e raccogliere, mese per mese.', crumbs: [['Calendario']] };
+      case 'colture': return { foto: FOTO.raccolto, eyebrow: 'Colture', titolo: 'Schede degli ortaggi', sub: `${C.length} colture: acqua, terreno, tempi, consociazioni e malattie.`, crumbs: [['Colture']] };
+      case 'coltura': {
+        const c = BY_ID[arg];
+        if (!c) return { foto: FOTO.raccolto, titolo: 'Coltura non trovata', crumbs: [['Colture', '#/colture'], ['Non trovata']] };
+        return { foto: window.FOTO_COLTURE[c.id] || FOTO.raccolto, eyebrow: esc(FAM[c.fam].nome), titolo: c.nome, sub: esc(c.ciclo), crumbs: [['Colture', '#/colture'], [c.nome]] };
+      }
+      case 'cassoni': return { foto: FOTO.aiuole, eyebrow: 'Il mio orto · ' + zona, titolo: 'Le tue aiuole', sub: 'Progetta, ruota e segui ogni aiuola stagione dopo stagione.', crumbs: [['Il mio orto']] };
+      case 'cassone': {
+        const a = cassoni.info(arg);
+        if (!a) return { foto: FOTO.aiuole, titolo: 'Aiuola non trovata', crumbs: [['Il mio orto', '#/cassoni'], ['Non trovata']] };
+        return { foto: a.tipo === 'terra' ? FOTO.terra : a.tipo === 'vaso' ? FOTO.vaso : FOTO.aiuole, eyebrow: esc(a.tipoNome), titolo: a.nome, sub: `${a.larghezza} × ${a.lunghezza} cm · ${esc(a.stagione)}`, crumbs: [['Il mio orto', '#/cassoni'], [a.nome]] };
+      }
+      case 'guida': return { foto: FOTO.guida, eyebrow: 'Guida', titolo: 'Guida all\'orto', sub: 'Rotazione, famiglie botaniche, irrigazione e consociazioni.', crumbs: [['Guida']] };
+      case 'account': return { foto: FOTO.account, eyebrow: 'Account', titolo: account.utente() ? 'Il tuo account' : 'Accedi o registrati', sub: 'Premium, sincronizzazione, meteo e notifiche.', crumbs: [['Account']] };
+    }
+    return null;
+  }
+  // "Indietro" torna alla pagina precedente se si è navigato dentro l'app, altrimenti alla pagina superiore.
+  let passi = 0;
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-indietro]');
+    if (!b) return;
+    if (passi > 0) history.back(); else location.hash = b.dataset.indietro;
+  });
+
   // ── Router ─────────────────────────────────────────────
   let lastRoute = '';
   function route() {
@@ -435,7 +471,10 @@
     else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; }
     else if (page === 'mese') { html = viewMese(); bind = bindMese; }
     else { html = viewHome(); bind = bindHome; tab = 'home'; }
+    const t = tab === 'home' ? null : testata(page, arg);
+    if (t) html = banner(t) + `<div class="pagina-corpo">${html}</div>`;
     document.body.classList.toggle('pagina-home', tab === 'home');
+    document.body.classList.toggle('pagina-foto', true);
     view.innerHTML = html;
     if (bind) bind(view);
     document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
@@ -460,7 +499,7 @@
   window.addEventListener('scroll', aggiornaTesta, { passive: true });
   aggiornaTesta();
 
-  window.addEventListener('hashchange', () => { state.calZona = null; route(); });
+  window.addEventListener('hashchange', () => { state.calZona = null; passi++; route(); });
   renderZone();
   route();
   account.avvio();
