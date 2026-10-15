@@ -7,7 +7,8 @@ window.OrtoAccount = function (ctx) {
   const CFG = window.ORTO_CONFIG || {};
   const attivo = !!(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
   const sb = attivo ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    // detectSessionInUrl: legge il link "password dimenticata" (#access_token=…&type=recovery)
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' }
   }) : null;
 
   const st = { utente: null, profilo: null, pronto: !attivo, fase: 'email', email: '', errore: '', avviso: '' };
@@ -40,6 +41,10 @@ window.OrtoAccount = function (ctx) {
     st.pronto = true;
     ctx.rerender();
     sb.auth.onAuthStateChange((evento, session) => {
+      if (evento === 'PASSWORD_RECOVERY') {
+        st.fase = 'nuovaPassword';
+        setTimeout(() => { location.hash = '#/account'; ctx.rerender(); }, 0);
+      }
       const prima = st.utente && st.utente.id;
       st.utente = (session && session.user) || null;
       // Le chiamate a Supabase vanno fatte fuori dal callback (evita blocchi della libreria).
@@ -192,20 +197,28 @@ window.OrtoAccount = function (ctx) {
     const msg = (st.errore ? `<p class="note err">${esc(st.errore)}</p>` : '') + (st.avviso ? `<p class="note">${esc(st.avviso)}</p>` : '');
     const vantaggi = `<ul class="vantaggi">${VANTAGGI.map(([i, t, d]) => `<li><span>${i}</span><span><strong>${t}</strong> <span class="muted">— ${d}</span></span></li>`).join('')}</ul>`;
 
+    if (st.fase === 'nuovaPassword' && st.utente) {
+      return testa + `<section class="card"><div class="section-title"><h2>Nuova password</h2></div>${msg}
+        <form class="form" id="formNuovaPw">
+          <label>Nuova password<input type="password" name="pw" required minlength="8" autocomplete="new-password"></label>
+          <button class="btn primary" type="submit">Salva password</button>
+        </form></section>`;
+    }
     if (!st.utente) {
-      const form = st.fase === 'email' ? `
-        <form class="form" id="formEmail">
-          <label>La tua email<input type="email" name="email" required autocomplete="email" value="${esc(st.email)}" placeholder="nome@esempio.it"></label>
-          <button class="btn primary" type="submit">Inviami il codice</button>
-        </form>` : `
-        <form class="form" id="formCodice">
-          <p style="margin:0">Ti ho inviato un codice a <strong>${esc(st.email)}</strong>. Controlla anche lo spam.</p>
-          <label>Codice ricevuto<input name="codice" required inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]{6,10}" placeholder="123456"></label>
-          <div class="btns"><button class="btn primary" type="submit">Entra</button><button class="btn" type="button" id="cambiaEmail">Cambia email</button></div>
+      const registra = st.fase === 'registra';
+      const form = `
+        <div class="seg" role="tablist">
+          <button type="button" role="tab" aria-selected="${!registra}" data-fase="email">Entra</button>
+          <button type="button" role="tab" aria-selected="${registra}" data-fase="registra">Crea account</button>
+        </div>
+        <form class="form" id="formAccesso">
+          <label>Email<input type="email" name="email" required autocomplete="email" value="${esc(st.email)}" placeholder="nome@esempio.it"></label>
+          <label>Password<input type="password" name="pw" required minlength="${registra ? 8 : 6}" autocomplete="${registra ? 'new-password' : 'current-password'}"${registra ? ' placeholder="almeno 8 caratteri"' : ''}></label>
+          <button class="btn primary" type="submit">${registra ? 'Crea account' : 'Entra'}</button>
+          ${registra ? '' : '<button class="link" type="button" id="pwDimenticata" style="align-self:flex-start">Password dimenticata?</button>'}
         </form>`;
       return testa + `<div class="stack">
-        <section class="card"><div class="section-title"><h2>Accedi o registrati</h2></div>
-          <p class="muted small" style="margin:0 0 12px">Niente password: ricevi un codice via email.</p>${msg}${form}</section>
+        <section class="card">${msg}${form}</section>
         <section class="card premium-box"><div class="section-title"><h2>✨ Premium</h2></div>${vantaggi}</section>
       </div>`;
     }
@@ -253,26 +266,47 @@ window.OrtoAccount = function (ctx) {
     const mostra = (errore, avviso) => { st.errore = errore || ''; st.avviso = avviso || ''; ctx.rerender(); };
     const occupato = (btn, s) => { if (btn) { btn.disabled = s; } };
 
-    const fe = root.querySelector('#formEmail');
-    if (fe) fe.onsubmit = async e => {
-      e.preventDefault();
-      const b = fe.querySelector('button'); occupato(b, true);
-      st.email = fe.email.value.trim();
-      const { error } = await sb.auth.signInWithOtp({ email: st.email, options: { shouldCreateUser: true } });
-      if (error) { occupato(b, false); return mostra('Invio non riuscito: ' + error.message); }
-      st.fase = 'codice'; mostra();
-    };
-    const fc = root.querySelector('#formCodice');
-    if (fc) {
-      fc.onsubmit = async e => {
+    root.querySelectorAll('[data-fase]').forEach(b => b.onclick = () => {
+      const f = root.querySelector('#formAccesso');
+      if (f) st.email = f.email.value.trim();
+      st.fase = b.dataset.fase; mostra();
+    });
+    const fa = root.querySelector('#formAccesso');
+    if (fa) {
+      fa.onsubmit = async e => {
         e.preventDefault();
-        const b = fc.querySelector('button[type=submit]'); occupato(b, true);
-        const { error } = await sb.auth.verifyOtp({ email: st.email, token: fc.codice.value.trim(), type: 'email' });
-        if (error) { occupato(b, false); return mostra('Codice non valido o scaduto. Riprova o richiedine uno nuovo.'); }
+        const b = fa.querySelector('button[type=submit]'); occupato(b, true);
+        st.email = fa.email.value.trim();
+        const cred = { email: st.email, password: fa.pw.value };
+        const { data, error } = st.fase === 'registra' ? await sb.auth.signUp(cred) : await sb.auth.signInWithPassword(cred);
+        if (error) {
+          occupato(b, false);
+          const t = /invalid login/i.test(error.message) ? 'Email o password non corretti.'
+            : /already registered/i.test(error.message) ? 'Esiste già un account con questa email: usa "Entra".'
+            : /password/i.test(error.message) ? 'Password non valida: usane una di almeno 8 caratteri.'
+            : 'Accesso non riuscito: ' + error.message;
+          return mostra(t);
+        }
+        if (!data.session) return mostra('', 'Account creato: controlla la posta per confermare l\'indirizzo.');
         st.fase = 'email'; st.errore = ''; st.avviso = '';
       };
-      root.querySelector('#cambiaEmail').onclick = () => { st.fase = 'email'; mostra(); };
+      const pd = root.querySelector('#pwDimenticata');
+      if (pd) pd.onclick = async () => {
+        const email = fa.email.value.trim();
+        if (!email) return mostra('Scrivi prima la tua email qui sopra.');
+        st.email = email;
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+        if (error) return mostra('Invio non riuscito: ' + error.message);
+        mostra('', 'Ti ho mandato un\'email con il link per scegliere una nuova password. Aprilo da questo dispositivo.');
+      };
     }
+    const fn = root.querySelector('#formNuovaPw');
+    if (fn) fn.onsubmit = async e => {
+      e.preventDefault();
+      const { error } = await sb.auth.updateUser({ password: fn.pw.value });
+      if (error) return mostra('Password non salvata: ' + error.message);
+      st.fase = 'email'; mostra('', 'Password aggiornata.');
+    };
     const esci = root.querySelector('#esci');
     if (esci) esci.onclick = async () => { await sb.auth.signOut(); st.fase = 'email'; mostra(); };
 

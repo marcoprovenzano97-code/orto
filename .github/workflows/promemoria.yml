@@ -13,4 +13,5 @@ jobs:
         env:
           URL: ${{ secrets.PROMEMORIA_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
-        run: curl -fsS -X POST "$URL" -H "x-cron-secret: $SECRET" -H "Content-Type: application/json"
+        run: |
+          curl -fsS -X POST "$URL" -H "x-cron-secret: $SECRET" -H "Content-Type: application/json"
