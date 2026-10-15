@@ -130,7 +130,7 @@ window.OrtoAccount = function (ctx) {
     if (error) throw error;
     await sb.from('profili').update({ notifiche: true }).eq('id', st.utente.id);
     st.profilo.notifiche = true;
-    await reg.showNotification('Il mio Orto', { body: 'Notifiche attive: ti avviso di pioggia, caldo, gelate e dei lavori della settimana.', icon: 'icons/icon-192.png' });
+    await reg.showNotification('Ortogramma', { body: 'Notifiche attive: ti avviso di pioggia, caldo, gelate e dei lavori della settimana.', icon: 'icons/icon-192.png' });
   }
   async function disattivaNotifiche() {
     const reg = await navigator.serviceWorker.getRegistration();

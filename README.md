@@ -1,4 +1,4 @@
-# Il mio Orto
+# Ortogramma
 
 App per la gestione dell'orto in cassoni: schede colture, calendario di semina per zona (Nord / Centro / Sud e isole), rotazione per cassone e progetto su griglia con vista isometrica.
 

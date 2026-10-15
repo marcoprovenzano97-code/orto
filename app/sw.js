@@ -1,5 +1,5 @@
 // Service worker: rende l'app utilizzabile offline. Aumentare VERSION a ogni rilascio.
-const VERSION = 'orto-v11';
+const VERSION = 'orto-v12';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'cassoni.js', 'account.js', 'promemoria.js', 'config.js', 'data/colture.js', 'data/foto.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -24,7 +24,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Il mio Orto', {
+  e.waitUntil(self.registration.showNotification(d.title || 'Ortogramma', {
     body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag, data: { url: d.url || './#/mese' }
   }));
 });

@@ -244,11 +244,11 @@ otp_expiry = 3600
 
 # Modelli email personalizzati: richiedono un SMTP proprio (Supabase free non li consente col provider predefinito).
 # [auth.email.template.magic_link]
-# subject = "Il tuo codice per Il mio Orto"
+# subject = "Il tuo codice per Ortogramma"
 # content_path = "./supabase/templates/codice.html"
 
 # [auth.email.template.confirmation]
-# subject = "Il tuo codice per Il mio Orto"
+# subject = "Il tuo codice per Ortogramma"
 # content_path = "./supabase/templates/codice.html"
 
 # Uncomment to customize email template
