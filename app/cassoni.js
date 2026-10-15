@@ -328,6 +328,9 @@ window.OrtoCassoni = function (ctx) {
           <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'Pronta da progettare')(coltureDi(piano(cs, k)).length)} · ${cols}×${rows} celle da ${CELLA} cm${cs.perenne ? ' · perenni' : ''}</p>
           <button class="btn primary hero-cta" id="vaiDisegna">✏️ Disegna l'aiuola</button>
         </div>
+        ${account.attivo ? `
+        <section class="card" id="irrCard">${htmlIrrigazione(cs, null)}</section>
+        <section class="card" id="ckCard">${htmlCheckup(cs)}</section>` : ''}
         <details class="card">
           <summary>Modifica aiuola</summary>
           ${formCassone(cs, 'Salva')}
@@ -371,7 +374,130 @@ window.OrtoCassoni = function (ctx) {
   }
 
   // ── Diario dei raccolti (premium) ───────────────────────
-  const oggiISO = () => new Date().toISOString().slice(0, 10);
+  const oggiISO = () => window.OrtoPromemoria.isoGiorno(new Date());
+
+  // ── Irrigazione in litri (premium) ──────────────────────
+  function htmlIrrigazione(cs, stato) {
+    const titolo = '<div class="section-title"><h2>💧 Irrigazione oggi</h2></div>';
+    if (!account.premium()) {
+      return titolo + '<p class="muted small" style="margin:0">Quanti litri servono oggi a questa aiuola, calcolati dal meteo del tuo comune, dalle colture e dal tipo di aiuola. <a href="#/account">Disponibile con Premium</a>.</p>';
+    }
+    if (!account.haComune()) return titolo + '<p class="muted small" style="margin:0"><a href="#/account">Imposta il tuo comune</a> per calcolare l\'acqua che serve.</p>';
+    if (!stato) return titolo + '<p class="muted small" style="margin:0">Calcolo in corso…</p>';
+    if (stato.errore) return titolo + `<p class="muted small" style="margin:0">${esc(stato.errore)}</p>`;
+    const ir = stato.ir, P = window.OrtoPromemoria;
+    const pulsante = cs.irrigata === oggiISO()
+      ? '<p class="muted small" style="margin:10px 0 0">✅ Annaffiata oggi.</p>'
+      : '<button class="btn" id="hoAnnaffiato" style="margin-top:12px">💧 Ho annaffiato oggi</button>';
+    if (!ir) return titolo + '<p class="muted small" style="margin:0">Disegna o registra le colture di questa stagione per calcolare l\'acqua.</p>' + pulsante;
+    let corpo;
+    if (ir.serve) {
+      corpo = `<p class="irr-litri"><strong>${ir.litri} litri</strong>${P.annaffiatoi(ir.litri)}</p>
+        <p class="muted small" style="margin:0">Mancano circa ${ir.mm} mm d'acqua su ${String(ir.area).replace('.', ',')} m² coltivati, ${ir.giorni === 1 ? 'da ieri' : `negli ultimi ${ir.giorni} giorni`}. Annaffia la sera o al mattino presto, al piede.</p>`;
+    } else if (ir.pioggiaOggi >= 5) {
+      corpo = `<p class="irr-litri"><strong>Non serve</strong></p><p class="muted small" style="margin:0">Oggi sono previsti ${Math.round(ir.pioggiaOggi)} mm di pioggia.</p>`;
+    } else {
+      corpo = `<p class="irr-litri"><strong>Non serve</strong></p><p class="muted small" style="margin:0">Il terreno ha ancora acqua a sufficienza${ir.mm > 0 ? ` (mancano solo ${ir.mm} mm)` : ''}.</p>`;
+    }
+    return titolo + corpo + pulsante +
+      '<p class="muted small" style="margin:10px 0 0">Stima indicativa: se il terreno a 3–5 cm è ancora umido, aspetta.</p>';
+  }
+  async function aggiornaIrrigazione(root, cs) {
+    const el = root.querySelector('#irrCard');
+    if (!el || !account.premium() || !account.haComune()) return;
+    let stato;
+    try {
+      const m = await account.meteoUtente();
+      stato = { ir: window.OrtoPromemoria.irrigazione(cs, BY_ID, m, new Date()) };
+    } catch (e) { stato = { errore: 'Meteo non disponibile in questo momento.' }; }
+    if (!el.isConnected) return;
+    el.innerHTML = htmlIrrigazione(cs, stato);
+    const b = el.querySelector('#hoAnnaffiato');
+    if (b) b.onclick = () => { cs.irrigata = oggiISO(); salva(); el.innerHTML = htmlIrrigazione(cs, { ir: window.OrtoPromemoria.irrigazione(cs, BY_ID, null, new Date()) }); aggiornaIrrigazione(root, cs); };
+  }
+
+  // ── Check-up con foto (premium) ─────────────────────────
+  const AZIONI = { raccogli: '🧺', annaffia: '💧', pota: '✂️', tratta: '🐛', concima: '🌿', proteggi: '🛡️', aspetta: '⏳', controlla: '🔎' };
+  const STATI = { buono: ['✅', 'In buona salute', 'good'], attenzione: ['⚠️', 'Da tenere d\'occhio', 'warn'], problema: ['⛔', 'C\'è un problema', 'bad'] };
+  const RACCOLTA = { si: 'Pronta da raccogliere', in_parte: 'Pronta in parte', no: 'Non ancora pronta' };
+  function htmlEsito(e) {
+    if (!e.foto_utile) return `<div class="esito"><p><strong>📷 Foto poco chiara</strong></p><p class="muted">${esc(e.consiglio_foto || 'Riprova con una foto più vicina e ben illuminata.')}</p></div>`;
+    const [ic, txt, cls] = STATI[e.stato] || STATI.attenzione;
+    return `<div class="esito">
+      <div class="esito-stato ${cls}">${ic} ${txt}</div>
+      ${e.corrisponde ? '' : `<p class="note">Nella foto sembra esserci <strong>${esc(e.coltura_vista)}</strong>, non la coltura indicata: ho valutato quella.</p>`}
+      <p>${esc(e.riepilogo)}</p>
+      ${e.raccolta && RACCOLTA[e.raccolta.pronta] ? `<p class="esito-racc">🧺 <strong>${RACCOLTA[e.raccolta.pronta]}</strong>${e.raccolta.quando ? ` — ${esc(e.raccolta.quando)}` : ''}</p>` : ''}
+      ${(e.azioni || []).length ? `<ul class="esito-azioni">${e.azioni.map(a => `<li class="p-${a.priorita}"><span class="ai">${AZIONI[a.tipo] || '•'}</span><span><strong>${esc(a.titolo)}</strong><br>${esc(a.dettaglio)}</span></li>`).join('')}</ul>` : ''}
+      ${(e.problemi || []).length ? `<p class="muted small" style="margin:12px 0 4px">Possibili problemi</p><ul class="clean small">${e.problemi.map(p => `<li><strong>${esc(p.nome)}</strong> (certezza ${esc(p.certezza)}): ${esc(p.segni)}</li>`).join('')}</ul>` : ''}
+    </div>`;
+  }
+  function htmlCheckup(cs) {
+    const titolo = '<div class="section-title"><h2>📷 Check-up con foto</h2></div>';
+    if (!account.premium()) {
+      return titolo + '<p class="muted small" style="margin:0">Fotografa una pianta e scopri se è da raccogliere, potare, annaffiare o se ha qualche malattia, con i rimedi. <a href="#/account">Disponibile con Premium</a>.</p>';
+    }
+    const inCampo = [...new Set([OGGI, state.stagione].flatMap(k => coltureDi(piano(cs, k))))];
+    const opzioni = [...inCampo, ...C.map(c => c.id).filter(id => !inCampo.includes(id))]
+      .map(id => `<option value="${id}">${BY_ID[id].emoji} ${esc(BY_ID[id].nome)}</option>`).join('');
+    const storico = (cs.checkup || []).slice().reverse();
+    return titolo + `
+      <p class="muted small" style="margin:0 0 10px">Inquadra la pianta da vicino, con buona luce. Ti dico come sta e cosa fare.</p>
+      <div class="form">
+        <label>Coltura nella foto<select id="ckColtura">${opzioni}</select></label>
+        <label class="btn primary ck-scatta">📷 Scatta o scegli una foto<input type="file" id="ckFoto" accept="image/*" capture="environment" hidden></label>
+      </div>
+      <div id="ckRisultato"></div>
+      ${storico.length ? `<p class="muted small" style="margin:16px 0 6px">Check-up precedenti</p>
+        <div class="ck-storico">${storico.map(s => `
+          <details class="ck-voce">
+            <summary><img src="${s.thumb}" alt=""><span><strong>${BY_ID[s.coltura] ? esc(BY_ID[s.coltura].nome) : 'Pianta'}</strong><br><span class="muted small">${new Date(s.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })} · ${(STATI[s.esito.stato] || STATI.attenzione)[0]} ${esc((STATI[s.esito.stato] || STATI.attenzione)[1])}</span></span></summary>
+            ${htmlEsito(s.esito)}
+          </details>`).join('')}</div>` : ''}`;
+  }
+  // Ridimensiona la foto sul telefono prima dell'invio (meno dati, analisi più veloce).
+  function riduci(file, lato, qualita) {
+    return new Promise((ok, ko) => {
+      const url = URL.createObjectURL(file), im = new Image();
+      im.onload = () => {
+        const s = Math.min(1, lato / Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        ok(c.toDataURL('image/jpeg', qualita));
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); ko(new Error('Formato della foto non supportato.')); };
+      im.src = url;
+    });
+  }
+  function bindCheckup(root, cs) {
+    const el = root.querySelector('#ckCard');
+    if (!el || !account.premium()) return;
+    const input = el.querySelector('#ckFoto'), out = el.querySelector('#ckRisultato');
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      const coltura = el.querySelector('#ckColtura').value;
+      out.innerHTML = '<div class="ck-attesa"><span class="ck-spinner"></span>Analizzo la foto… di solito ci vogliono 20–40 secondi.</div>';
+      input.disabled = true;
+      try {
+        const [foto, thumb] = await Promise.all([riduci(file, 1280, 0.82), riduci(file, 240, 0.7)]);
+        out.insertAdjacentHTML('afterbegin', `<img class="ck-anteprima" src="${thumb}" alt="">`);
+        const r = await account.checkup({ immagine: foto, coltura, tipoAiuola: tipoDi(cs), irrigata: cs.irrigata || null });
+        cs.checkup = (cs.checkup || []).concat({ id: uid(), data: oggiISO(), coltura, thumb, esito: r.esito }).slice(-12);
+        salva();
+        el.innerHTML = htmlCheckup(cs);
+        el.querySelector('#ckColtura').value = coltura;
+        el.querySelector('#ckRisultato').innerHTML = `<img class="ck-anteprima" src="${thumb}" alt="">${htmlEsito(r.esito)}<p class="muted small" style="margin:8px 0 0">Check-up rimasti questo mese: ${r.rimasti}</p>`;
+        bindCheckup(root, cs);
+      } catch (e) {
+        out.innerHTML = `<p class="note err">${esc(e.message || 'Analisi non riuscita.')}</p>`;
+      } finally {
+        input.disabled = false; input.value = '';
+      }
+    };
+  }
   const fmtKg = n => (Math.round(n * 100) / 100).toLocaleString('it-IT') + ' kg';
   function htmlRaccolti(cs) {
     const titolo = '<div class="section-title"><h2>🧺 Diario dei raccolti</h2></div>';
@@ -501,6 +627,8 @@ window.OrtoCassoni = function (ctx) {
     }
     aggiorna();
     root.querySelector('#vaiDisegna').onclick = () => root.querySelector('#disegna').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    aggiornaIrrigazione(root, cs);
+    bindCheckup(root, cs);
 
     // Modifica / elimina
     const f = root.querySelector('form[data-form="cassone"]');

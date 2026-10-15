@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       const chiave = `${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;
       if (!cacheMeteo.has(chiave)) {
         try {
-          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&past_days=5&forecast_days=4&timezone=Europe%2FRome`);
+          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&past_days=5&forecast_days=4&timezone=Europe%2FRome`);
           cacheMeteo.set(chiave, await r.json());
         } catch (e) { esito.errori.push('meteo ' + chiave + ': ' + e); cacheMeteo.set(chiave, null); }
       }

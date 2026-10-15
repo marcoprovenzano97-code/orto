@@ -96,7 +96,7 @@ window.OrtoAccount = function (ctx) {
     const { error } = await sb.from('profili').update({ luogo, lat, lon }).eq('id', st.utente.id);
     if (error) throw error;
     Object.assign(st.profilo, { luogo, lat, lon });
-    try { sessionStorage.removeItem('orto.meteo'); } catch (e) { /* ignore */ }
+    try { sessionStorage.removeItem('orto.meteo2'); } catch (e) { /* ignore */ }
   }
   async function cercaComune(q) {
     const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=it&countryCode=IT`);
@@ -145,12 +145,12 @@ window.OrtoAccount = function (ctx) {
   async function meteo(lat, lon) {
     const chiave = `${lat.toFixed(2)},${lon.toFixed(2)}`;
     try {
-      const c = JSON.parse(sessionStorage.getItem('orto.meteo') || 'null');
+      const c = JSON.parse(sessionStorage.getItem('orto.meteo2') || 'null');
       if (c && c.chiave === chiave && Date.now() - c.t < 3600e3) return c.dati;
     } catch (e) { /* ignore */ }
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&past_days=5&forecast_days=4&timezone=Europe%2FRome`);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&past_days=5&forecast_days=4&timezone=Europe%2FRome`);
     const dati = await r.json();
-    try { sessionStorage.setItem('orto.meteo', JSON.stringify({ chiave, t: Date.now(), dati })); } catch (e) { /* ignore */ }
+    try { sessionStorage.setItem('orto.meteo2', JSON.stringify({ chiave, t: Date.now(), dati })); } catch (e) { /* ignore */ }
     return dati;
   }
   function htmlOggi() {
@@ -184,11 +184,12 @@ window.OrtoAccount = function (ctx) {
 
   // ── Pagina Account ─────────────────────────────────────
   const VANTAGGI = [
-    ['🌱', 'Aiuole illimitate', 'con storico, rotazione e disegno'],
-    ['☁️', 'Sincronizzazione', 'stesso orto su telefono e PC, con backup automatico'],
+    ['📷', 'Check-up con foto', 'fotografa una pianta: ti dico se è da raccogliere, potare, annaffiare o curare'],
+    ['💧', 'Irrigazione in litri', 'quanta acqua serve oggi a ogni aiuola, dal meteo reale del tuo comune'],
+    ['🌦️', 'Avvisi meteo', 'pioggia, caldo, gelate: ogni mattina, solo quando serve'],
     ['🔔', 'Promemoria', 'raccolte, aiuole libere e semine della settimana'],
-    ['🌦️', 'Irrigazione col meteo', 'avvisi di pioggia, caldo e gelate per il tuo comune'],
-    ['🧺', 'Diario dei raccolti', 'quanto hai raccolto, aiuola per aiuola']
+    ['🌱', 'Aiuole illimitate', 'con storico, rotazione, disegno e diario dei raccolti'],
+    ['☁️', 'Sincronizzazione', 'stesso orto su telefono e PC, con backup automatico']
   ];
   function viewAccount() {
     const testa = '';   // il titolo è nella testata con foto
@@ -358,8 +359,26 @@ window.OrtoAccount = function (ctx) {
     });
   }
 
+  // Meteo del comune dell'utente (per irrigazione e check-up); null se manca il comune.
+  async function meteoUtente() {
+    const p = st.profilo;
+    if (!p || p.lat == null) return null;
+    return meteo(p.lat, p.lon);
+  }
+  // Invia la foto alla funzione "checkup" e restituisce { esito, rimasti }.
+  async function checkup(corpo) {
+    const { data, error } = await sb.functions.invoke('checkup', { body: corpo });
+    if (error) {
+      let testo = 'Analisi non riuscita, riprova più tardi.';
+      try { const j = await error.context.json(); if (j && j.errore) testo = j.errore; } catch (e) { /* ignore */ }
+      throw new Error(testo);
+    }
+    return data;
+  }
+
   return {
     attivo, premium, avvio, collega: f => { fonte = f; }, datiSalvati, zonaCambiata,
+    meteoUtente, checkup, haComune: () => !!(st.profilo && st.profilo.lat != null),
     htmlOggi, bindOggi, viewAccount, bindAccount,
     utente: () => st.utente
   };

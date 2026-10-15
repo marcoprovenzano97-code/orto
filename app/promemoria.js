@@ -53,6 +53,90 @@
   }
   const uniche = list => [...new Map(list.map(x => [x.c.id, x.c])).values()];
 
+  // ── Irrigazione in litri (metodo FAO: ETc = ET0 × Kc) ──────────────────
+  // Kc di pieno sviluppo, indicativi per l'orto familiare (FAO-56, arrotondati).
+  const KC = {
+    pomodoro: 1.15, peperone: 1.05, melanzana: 1.05, peperoncino: 1.05, patata: 1.15,
+    zucchina: 1.0, zucca: 1.0, cetriolo: 1.0, melone: 1.05, anguria: 1.0,
+    fagiolo: 1.1, fagiolino: 1.05, pisello: 1.15, fava: 1.15,
+    cavolfiore: 1.05, broccolo: 1.05, cappuccio: 1.05, cavolonero: 1.05, verza: 1.05, cimedirapa: 1.05,
+    rucola: 1.0, ravanello: 0.9, lattuga: 1.0, radicchio: 1.0, indivia: 1.0, carciofo: 1.0,
+    carota: 1.05, sedano: 1.05, prezzemolo: 1.0, finocchio: 1.0, bietola: 1.05, spinacio: 1.0, barbabietola: 1.05,
+    aglio: 1.0, cipolla: 1.05, porro: 1.0, basilico: 0.95, fragola: 0.85, mais: 1.2, valerianella: 1.0, asparago: 0.95
+  };
+  // Vasi e cassoni rialzati perdono più acqua (bordi esposti, drenaggio rapido).
+  const FATTORE_TIPO = { terra: 1.0, cassone: 1.1, vaso: 1.2 };
+  const CELLA_M2 = 0.09;          // cella da 30×30 cm
+  const PIOGGIA_UTILE = 0.8;      // quota di pioggia che resta davvero nel terreno
+  const SOGLIA_MM = 2;            // sotto questa carenza non conviene annaffiare
+
+  function chiaviInCampo(oggi) {
+    const m = oggi.getMonth() + 1, y = oggi.getFullYear(), k = [stagioneDa(oggi)];
+    if (m >= 7 && m <= 10) k.push(y + '-PE');
+    if (m >= 2 && m <= 5) k.push((y - 1) + '-AI');
+    return k;
+  }
+
+  /**
+   * Quanta acqua serve oggi a un'aiuola.
+   * Bilancio dall'ultima irrigazione registrata (al massimo 4 giorni fa, oggi compreso):
+   * evapotraspirazione della coltura meno pioggia utile, per la superficie coltivata.
+   * @returns {null | {mm, litri, area, giorni, pioggiaOggi, serve}}  null se mancano meteo o colture
+   */
+  function irrigazione(cs, byId, meteo, oggi) {
+    const d = meteo && meteo.daily;
+    if (!d || !d.et0_fao_evapotranspiration) return null;
+    const iso = isoGiorno(oggi), i = d.time.indexOf(iso);
+    if (i < 0) return null;
+
+    // Colture in campo con il loro peso: celle disegnate, oppure colture registrate senza griglia.
+    const peso = {};
+    chiaviInCampo(oggi).forEach(k => {
+      const p = cs.piani && cs.piani[k];
+      if (!p) return;
+      Object.values(p.celle || {}).forEach(id => { if (byId[id]) peso[id] = (peso[id] || 0) + 1; });
+    });
+    let celle = Object.values(peso).reduce((s, n) => s + n, 0);
+    let area = celle * CELLA_M2;
+    if (!celle) {
+      chiaviInCampo(oggi).forEach(k => {
+        const p = cs.piani && cs.piani[k];
+        if (p) (p.extra || []).forEach(id => { if (byId[id]) peso[id] = 1; });
+      });
+      if (!Object.keys(peso).length) return null;
+      area = (cs.larghezza || 100) * (cs.lunghezza || 100) / 10000;
+    }
+    const nPeso = Object.values(peso).reduce((s, n) => s + n, 0);
+    const kc = Object.entries(peso).reduce((s, [id, n]) => s + (KC[id] || 1) * n, 0) / nPeso;
+    const fattore = FATTORE_TIPO[cs.tipo] || FATTORE_TIPO.cassone;
+
+    let inizio = Math.max(0, i - 3);
+    if (cs.irrigata) {
+      const j = d.time.indexOf(cs.irrigata);
+      if (j >= 0 && j >= inizio) inizio = j + 1;
+      else if (cs.irrigata > d.time[i]) inizio = i + 1;
+    }
+    let etc = 0, pioggia = 0;
+    for (let j = inizio; j <= i; j++) {
+      etc += (d.et0_fao_evapotranspiration[j] || 0) * kc * fattore;
+      pioggia += (d.precipitation_sum[j] || 0) * PIOGGIA_UTILE;
+    }
+    const mm = Math.max(0, etc - pioggia);
+    return {
+      mm: Math.round(mm * 10) / 10,
+      litri: Math.round(mm * area),
+      area: Math.round(area * 100) / 100,
+      giorni: Math.max(0, i - inizio + 1),
+      pioggiaOggi: d.precipitation_sum[i] || 0,
+      serve: mm >= SOGLIA_MM && (d.precipitation_sum[i] || 0) < 5
+    };
+  }
+  const annaffiatoi = l => {
+    if (l <= 3) return '';
+    const n = Math.max(1, Math.round(l / 5));
+    return ` (circa ${n} annaffiato${n === 1 ? 'io' : 'i'} da 5 L)`;
+  };
+
   /**
    * @param {object} o
    * @param {Array}  o.colture  database colture (window.COLTURE)
@@ -110,6 +194,17 @@
       }
     }
 
+    // Irrigazione aiuola per aiuola (solo se oggi non piove già abbastanza).
+    if (i >= 0) {
+      const sete = aiuole.map(cs => ({ cs, ir: irrigazione(cs, byId, meteo, oggi) })).filter(x => x.ir && x.ir.serve);
+      if (sete.length) {
+        const tot = sete.reduce((s, x) => s + x.ir.litri, 0);
+        out.push({ id: `irriga-${iso}`, tipo: 'meteo', livello: 'media', titolo: `💧 Da annaffiare oggi (circa ${tot} L)`,
+          testo: sete.map(x => `${x.cs.nome}: ${x.ir.litri} L`).join(' · ') + '. Meglio la sera o al mattino presto, al piede.',
+          link: '#/cassone/' + sete[0].cs.id });
+      }
+    }
+
     const daRaccogliere = uniche(campo.filter(x => mesi(x.c.cal[zona].rac).has(m)));
     if (daRaccogliere.length) {
       out.push({ id: `raccolta-${iso.slice(0, 7)}`, tipo: 'lavori', livello: 'info', titolo: '🧺 Periodo di raccolta', testo: elenco(daRaccogliere) + '.' });
@@ -126,5 +221,5 @@
     return out;
   }
 
-  root.OrtoPromemoria = { calcola, stagioneDa, isoGiorno };
+  root.OrtoPromemoria = { calcola, stagioneDa, isoGiorno, irrigazione, annaffiatoi };
 })(typeof window !== 'undefined' ? window : globalThis);

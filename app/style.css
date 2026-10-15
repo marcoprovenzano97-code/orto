@@ -401,3 +401,31 @@ details[open] > summary { margin-bottom: 12px; }
 .pagina-corpo { max-width: 760px; margin: 0 auto; padding: 22px 16px 48px; }
 .lead { font-size: 1.08rem; margin: 0; }
 .iso-hero .tagline { margin: 4px 0 0; }
+
+/* ── Irrigazione e check-up con foto ─────────────────── */
+.irr-litri { font-family: var(--serif); font-size: 1.6rem; margin: 0 0 4px; }
+.irr-litri strong { color: var(--tra); }
+.ck-scatta { align-self: stretch; text-align: center; padding: 12px; cursor: pointer; }
+.ck-attesa { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.ck-spinner { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--green); animation: gira .8s linear infinite; flex: none; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.ck-anteprima { display: block; width: 120px; height: 90px; object-fit: cover; border-radius: 10px; margin: 14px 0 8px; }
+.esito { margin-top: 8px; }
+.esito p { margin: 8px 0; }
+.esito-stato { display: inline-block; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: var(--surface-2); }
+.esito-stato.good { background: var(--green-soft); }
+.esito-stato.warn { background: #f7ecd2; }
+.esito-stato.bad { background: var(--red-soft); color: var(--red); }
+.esito-racc { background: var(--surface-2); border-radius: 10px; padding: 8px 12px; }
+.esito-azioni { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.esito-azioni li { display: flex; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border-left: 4px solid var(--line); }
+.esito-azioni li.p-alta { border-left-color: var(--red); }
+.esito-azioni li.p-media { border-left-color: var(--dir); }
+.esito-azioni li.p-bassa { border-left-color: var(--green); }
+.esito-azioni .ai { font-size: 1.3rem; }
+.ck-storico { display: flex; flex-direction: column; gap: 8px; }
+.ck-voce { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+.ck-voce > summary { display: flex; align-items: center; gap: 10px; }
+.ck-voce > summary::before { display: none; }
+.ck-voce > summary img { width: 54px; height: 42px; object-fit: cover; border-radius: 8px; flex: none; }
+.ck-voce[open] > summary { margin-bottom: 4px; }
