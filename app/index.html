@@ -18,6 +18,7 @@
   <header class="topbar">
     <div class="brand"><img src="icons/icon-192.png" alt=""><span>Il mio Orto</span></div>
     <div class="zone-switch" id="zoneSwitch" role="radiogroup" aria-label="Zona climatica"></div>
+    <a class="acc-btn" href="#/account" aria-label="Account" title="Account">👤</a>
   </header>
 
   <main id="view" tabindex="-1"></main>
@@ -29,7 +30,11 @@
     <a href="#/guida" data-tab="guida"><span class="ti">📖</span><span>Guida</span></a>
   </nav>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
   <script src="data/colture.js"></script>
+  <script src="promemoria.js"></script>
+  <script src="account.js"></script>
   <script src="cassoni.js"></script>
   <script src="app.js"></script>
 </body>

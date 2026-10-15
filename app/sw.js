@@ -1,6 +1,6 @@
 // Service worker: rende l'app utilizzabile offline. Aumentare VERSION a ogni rilascio.
-const VERSION = 'orto-v4';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'cassoni.js', 'data/colture.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const VERSION = 'orto-v5';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'cassoni.js', 'account.js', 'promemoria.js', 'config.js', 'data/colture.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -18,4 +18,21 @@ self.addEventListener('fetch', e => {
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
+});
+
+// Notifiche push (promemoria e avvisi meteo inviati dal server).
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Il mio Orto', {
+    body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag, data: { url: d.url || './#/mese' }
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || './#/mese', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(finestre => {
+    for (const f of finestre) { if ('focus' in f) { f.navigate(url); return f.focus(); } }
+    return self.clients.openWindow(url);
+  }));
 });

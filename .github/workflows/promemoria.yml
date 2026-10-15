@@ -1,0 +1,16 @@
+# Ogni mattina chiama la funzione Supabase che invia promemoria e avvisi meteo agli utenti premium.
+# Segreti del repository: PROMEMORIA_URL (indirizzo della funzione) e CRON_SECRET.
+name: Promemoria giornalieri
+on:
+  schedule:
+    - cron: '30 5 * * *'   # 7:30 ora legale italiana (6:30 con l'ora solare)
+  workflow_dispatch:
+jobs:
+  invia:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invia promemoria
+        env:
+          URL: ${{ secrets.PROMEMORIA_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: curl -fsS -X POST "$URL" -H "x-cron-secret: $SECRET" -H "Content-Type: application/json"

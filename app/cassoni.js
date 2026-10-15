@@ -2,7 +2,9 @@
 // I dati restano sul dispositivo (localStorage "orto.cassoni"); esporta/importa per il backup.
 window.OrtoCassoni = function (ctx) {
   'use strict';
-  const { C, BY_ID, FAM, ESIG, ZONE, store, state, esc, inMese, famDot, chip, relazioni, PERENNI, ROTAZIONE, areaPianta, rerender } = ctx;
+  const { C, BY_ID, FAM, ESIG, ZONE, store, state, esc, inMese, famDot, chip, relazioni, PERENNI, ROTAZIONE, areaPianta, account, rerender } = ctx;
+  const LIMITE_GRATIS = 1;  // aiuole nel piano gratuito (solo quando gli account sono attivi)
+  const limitato = () => account.attivo && !account.premium() && dati.cassoni.length >= LIMITE_GRATIS;
 
   const TIPI = {
     cassone: { nome: 'Cassone rialzato' },
@@ -18,7 +20,11 @@ window.OrtoCassoni = function (ctx) {
   const ALTE = new Set(['pomodoro', 'mais', 'cetriolo', 'fagiolo', 'fava', 'carciofo', 'asparago']);
 
   const dati = store.get('cassoni', null) || { cassoni: [] };
-  const salva = () => store.set('cassoni', dati);
+  function salva() {
+    dati.aggiornato = new Date().toISOString();
+    store.set('cassoni', dati);
+    account.datiSalvati(dati);
+  }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const trova = id => dati.cassoni.find(x => x.id === id);
 
@@ -242,13 +248,19 @@ window.OrtoCassoni = function (ctx) {
               <li><strong>✏️ Disegna l'aiuola</strong>: una griglia (celle da 30 cm) dove disponi le colture, con il controllo di consociazioni, spazi e ombra e la vista 3D.</li>
             </ul>
           </div>`}
+        ${limitato() ? `
+        <a class="card premium-teaser" href="#/account">
+          <span class="pt-icon">✨</span>
+          <span><strong>Vuoi altre aiuole?</strong><span class="muted small" style="display:block">Il piano gratuito include ${LIMITE_GRATIS} aiuola. Con Premium sono illimitate, sincronizzate tra i tuoi dispositivi e con promemoria e avvisi meteo.</span></span>
+          <span class="chev">›</span>
+        </a>` : `
         <details class="card" id="nuovo" ${dati.cassoni.length ? '' : 'open'}>
           <summary><strong>+ Nuova aiuola</strong></summary>
           ${formCassone({ nome: `Aiuola ${dati.cassoni.length + 1}`, tipo: 'cassone', larghezza: 120, lunghezza: 240 }, 'Aggiungi')}
-        </details>
+        </details>`}
         <section class="card">
           <div class="section-title"><h2>💾 Backup</h2></div>
-          <p class="muted small" style="margin:0 0 10px">I dati sono salvati solo su questo dispositivo. Esporta un backup ogni tanto, o per passarli su un altro telefono.</p>
+          <p class="muted small" style="margin:0 0 10px">${account.premium() ? 'Le aiuole sono sincronizzate nel tuo account. Puoi comunque esportarne una copia.' : 'I dati sono salvati solo su questo dispositivo. Esporta un backup ogni tanto, o per passarli su un altro telefono.'}</p>
           <div class="btns">
             <button class="btn" id="esporta" ${dati.cassoni.length ? '' : 'disabled'}>Esporta</button>
             <label class="btn">Importa<input type="file" id="importa" accept="application/json,.json" hidden></label>
@@ -277,8 +289,9 @@ window.OrtoCassoni = function (ctx) {
   });
   function bindLista(root) {
     const f = root.querySelector('form[data-form="cassone"]');
-    f.onsubmit = e => {
+    if (f) f.onsubmit = e => {
       e.preventDefault();
+      if (limitato()) { location.hash = '#/account'; return; }
       const cs = Object.assign({ id: uid(), piani: {} }, leggiForm(f));
       dati.cassoni.push(cs); salva();
       location.hash = '#/cassone/' + cs.id;
@@ -353,12 +366,43 @@ window.OrtoCassoni = function (ctx) {
           <div id="avvisi"></div>
         </section>
 
+        <section class="card" id="raccoltiCard">${htmlRaccolti(cs)}</section>
+
         <section class="card">
           <div class="section-title"><h2>🗂️ Storico dell'aiuola</h2></div>
           ${htmlStorico(cs)}
           ${ui.registra ? htmlRegistra() : `<button class="btn" id="apriRegistra" style="margin-top:10px">+ Registra una stagione passata</button>`}
         </section>
       </div>`;
+  }
+
+  // ── Diario dei raccolti (premium) ───────────────────────
+  const oggiISO = () => new Date().toISOString().slice(0, 10);
+  const fmtKg = n => (Math.round(n * 100) / 100).toLocaleString('it-IT') + ' kg';
+  function htmlRaccolti(cs) {
+    const titolo = '<div class="section-title"><h2>🧺 Diario dei raccolti</h2></div>';
+    if (account.attivo && !account.premium()) {
+      return titolo + '<p class="muted small" style="margin:0">Registra quanto raccogli in ogni aiuola e confronta le stagioni. <a href="#/account">Disponibile con Premium</a>.</p>';
+    }
+    const lista = (cs.raccolti || []).slice().sort((a, b) => b.data.localeCompare(a.data));
+    const anno = String(new Date().getFullYear());
+    const tot = {};
+    lista.filter(r => r.data.startsWith(anno)).forEach(r => { tot[r.coltura] = (tot[r.coltura] || 0) + r.kg; });
+    const inCampo = coltureDi(piano(cs, OGGI));
+    const opzioni = [...inCampo, ...C.map(c => c.id).filter(id => !inCampo.includes(id))]
+      .map(id => `<option value="${id}">${BY_ID[id].emoji} ${esc(BY_ID[id].nome)}</option>`).join('');
+    const nomeC = id => BY_ID[id] ? BY_ID[id].emoji + ' ' + esc(BY_ID[id].nome) : esc(id);
+    return titolo + `
+      <form class="form racc-form" data-form="raccolto">
+        <div class="three">
+          <label>Coltura<select name="coltura">${opzioni}</select></label>
+          <label>Kg<input name="kg" type="number" min="0.01" step="0.01" required inputmode="decimal" placeholder="0,5"></label>
+          <label>Data<input name="data" type="date" required value="${oggiISO()}" max="${oggiISO()}"></label>
+        </div>
+        <button class="btn primary" type="submit">+ Registra raccolto</button>
+      </form>
+      ${Object.keys(tot).length ? `<p class="muted small" style="margin:14px 0 6px">Totale ${anno}</p><div class="riep" style="margin:0">${Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([id, kg]) => `<span class="pill">${nomeC(id)} · ${fmtKg(kg)}</span>`).join('')}</div>` : ''}
+      ${lista.length ? `<ul class="racc-lista">${lista.slice(0, 12).map(r => `<li><span class="muted">${new Date(r.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</span><span>${nomeC(r.coltura)}</span><strong>${fmtKg(r.kg)}</strong><button class="link danger" data-togli="${r.id}" aria-label="Elimina raccolto">✕</button></li>`).join('')}</ul>` : '<p class="empty" style="margin:12px 0 0">Ancora nessun raccolto registrato.</p>'}`;
   }
 
   function htmlRotazione(cs, k) {
@@ -543,6 +587,27 @@ window.OrtoCassoni = function (ctx) {
     grid.addEventListener('pointercancel', fine);
     grid.addEventListener('pointerleave', fine);
 
+    // Diario raccolti
+    const rc = root.querySelector('#raccoltiCard');
+    rc.addEventListener('submit', e => {
+      const fr = e.target.closest('form[data-form="raccolto"]');
+      if (!fr) return;
+      e.preventDefault();
+      const kg = parseFloat(String(fr.kg.value).replace(',', '.'));
+      if (!(kg > 0)) return;
+      cs.raccolti = cs.raccolti || [];
+      cs.raccolti.push({ id: uid(), data: fr.data.value, coltura: fr.coltura.value, kg });
+      salva();
+      rc.innerHTML = htmlRaccolti(cs);
+    });
+    rc.addEventListener('click', e => {
+      const b = e.target.closest('[data-togli]');
+      if (!b || !confirm('Eliminare questo raccolto?')) return;
+      cs.raccolti = (cs.raccolti || []).filter(r => r.id !== b.dataset.togli);
+      salva();
+      rc.innerHTML = htmlRaccolti(cs);
+    });
+
     // Storico
     root.querySelectorAll('[data-vai]').forEach(b => b.onclick = () => { state.stagione = b.dataset.vai; rerender(); });
     root.querySelectorAll('[data-cancella]').forEach(b => b.onclick = () => {
@@ -568,5 +633,14 @@ window.OrtoCassoni = function (ctx) {
   // Cambiando cassone si riparte senza coltura selezionata.
   window.addEventListener('hashchange', () => { ui.pennello = null; ui.registra = false; });
 
-  return { viewLista, bindLista, viewCassone, bindCassone };
+  return {
+    viewLista, bindLista, viewCassone, bindCassone,
+    getDati: () => dati,
+    // Sostituisce i dati locali con quelli arrivati dal cloud (senza rimandarli indietro).
+    setDati(n) {
+      dati.cassoni = Array.isArray(n && n.cassoni) ? n.cassoni : [];
+      dati.aggiornato = (n && n.aggiornato) || new Date().toISOString();
+      store.set('cassoni', dati);
+    }
+  };
 };

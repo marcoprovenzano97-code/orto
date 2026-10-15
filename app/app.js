@@ -71,6 +71,7 @@
       if (!b) return;
       state.zona = b.dataset.zona; state.calZona = null;
       store.set('zona', state.zona);
+      account.zonaCambiata(state.zona);
       renderZone(); route();
     };
   }
@@ -95,10 +96,11 @@
         </div>
         <button class="iconbtn" data-act="next" aria-label="Mese successivo">›</button>
       </div>
-      <div class="stack">${blocchi}</div>
+      <div class="stack">${account.htmlOggi()}${blocchi}</div>
       <p class="disclaimer">Calendari indicativi per la zona ${esc(ZONE[z].nome)}: ${esc(ZONE[z].desc)} Adatta le date alle gelate della tua zona.</p>`;
   }
   function bindMese(root) {
+    account.bindOggi(root);
     root.querySelector('[data-act="prev"]').onclick = () => { state.mese = (state.mese + 10) % 12 + 1; render(); };
     root.querySelector('[data-act="next"]').onclick = () => { state.mese = state.mese % 12 + 1; render(); };
   }
@@ -321,11 +323,18 @@
       </div>`;
   }
 
-  // ── Modulo "I miei cassoni" (cassoni.js) ───────────────
-  const cassoni = window.OrtoCassoni({
-    C, BY_ID, FAM, ESIG, ZONE, store, state, esc, inMese, famDot, chip, relazioni, PERENNI, ROTAZIONE, areaPianta,
-    rerender() { const y = window.scrollY; render(); window.scrollTo(0, y); }
+  // ── Account e Premium (account.js) ─────────────────────
+  const rerender = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  const account = window.OrtoAccount({
+    esc, store, state, ZONE, rerender,
+    impostaZona(z) { state.zona = z; store.set('zona', z); renderZone(); }
   });
+
+  // ── Modulo aiuole "Il mio orto" (cassoni.js) ───────────
+  const cassoni = window.OrtoCassoni({
+    C, BY_ID, FAM, ESIG, ZONE, store, state, esc, inMese, famDot, chip, relazioni, PERENNI, ROTAZIONE, areaPianta, account, rerender
+  });
+  account.collega({ get: cassoni.getDati, set: cassoni.setDati });
 
   // ── Router ─────────────────────────────────────────────
   let lastRoute = '';
@@ -339,6 +348,7 @@
     else if (page === 'cassone') { html = cassoni.viewCassone(arg); bind = v => cassoni.bindCassone(v, arg); tab = 'cassoni'; }
     else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
     else if (page === 'guida') { html = viewGuida(); }
+    else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; tab = ''; }
     else { html = viewMese(); bind = bindMese; tab = 'mese'; }
     view.innerHTML = html;
     if (bind) bind(view);
@@ -351,6 +361,7 @@
   window.addEventListener('hashchange', () => { state.calZona = null; route(); });
   renderZone();
   route();
+  account.avvio();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

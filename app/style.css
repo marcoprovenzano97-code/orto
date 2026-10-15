@@ -284,3 +284,28 @@ details[open] > summary { margin-bottom: 12px; }
 .row { border-radius: 14px; box-shadow: var(--shadow); }
 .iso-hero .hero-cta { margin-top: 14px; background: #f8f1e6; border-color: #f8f1e6; color: #3d2618; }
 #disegna { scroll-margin-top: 120px; }
+
+/* ── Account e Premium ───────────────────────────────── */
+.topbar { position: sticky; }
+.acc-btn {
+  position: absolute; right: 16px; top: calc(10px + env(safe-area-inset-top));
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(248,241,230,.12); text-decoration: none; font-size: 1.05rem;
+}
+.zone-switch { margin-right: 46px; }
+@media (max-width: 520px) { .zone-switch { margin-right: 0; } }
+.premium-teaser {
+  display: flex; align-items: center; gap: 12px; text-decoration: none;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--green-soft) 100%);
+}
+.premium-teaser .pt-icon { font-size: 1.6rem; }
+.premium-teaser .chev { margin-left: auto; color: var(--muted); }
+.vantaggi { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.vantaggi li { display: flex; gap: 10px; align-items: flex-start; }
+.vantaggi li > span:first-child { font-size: 1.1rem; }
+.note.err { background: var(--red-soft); color: var(--red); }
+.form .three { display: grid; grid-template-columns: 1.6fr .8fr 1.2fr; gap: 8px; }
+@media (max-width: 420px) { .form .three { grid-template-columns: 1fr 1fr; } .form .three label:first-child { grid-column: 1 / -1; } }
+.racc-lista { list-style: none; margin: 12px 0 0; padding: 0; }
+.racc-lista li { display: grid; grid-template-columns: 64px 1fr auto 24px; gap: 8px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: .92rem; }
+.oggi .avvisi li > span:first-child { display: none; }

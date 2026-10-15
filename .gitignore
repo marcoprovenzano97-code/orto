@@ -1,2 +1,5 @@
 desktop.ini
 *.tmp
+supabase/functions/_shared/colture.js
+supabase/functions/_shared/promemoria.js
+segreti/
