@@ -348,15 +348,27 @@
     else if (page === 'cassone') { html = cassoni.viewCassone(arg); bind = v => cassoni.bindCassone(v, arg); tab = 'cassoni'; }
     else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
     else if (page === 'guida') { html = viewGuida(); }
-    else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; tab = ''; }
+    else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; }
     else { html = viewMese(); bind = bindMese; tab = 'mese'; }
     view.innerHTML = html;
     if (bind) bind(view);
-    document.querySelectorAll('.tabbar a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
+    document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
+    apriMenu(false);
     if (h !== lastRoute) window.scrollTo(0, 0);
     lastRoute = h;
   }
   const render = route;
+
+  // ── Menu a tendina ─────────────────────────────────────
+  const menuBtn = document.getElementById('menuBtn'), menu = document.getElementById('menu'), velo = document.getElementById('menuVelo');
+  function apriMenu(apri) {
+    menu.hidden = !apri; velo.hidden = !apri;
+    menuBtn.setAttribute('aria-expanded', String(apri));
+  }
+  menuBtn.onclick = () => apriMenu(menu.hidden);
+  velo.onclick = () => apriMenu(false);
+  menu.onclick = e => { if (e.target.closest('a')) apriMenu(false); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { apriMenu(false); menuBtn.focus(); } });
 
   window.addEventListener('hashchange', () => { state.calZona = null; route(); });
   renderZone();

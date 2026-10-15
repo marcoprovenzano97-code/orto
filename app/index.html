@@ -16,19 +16,24 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><img src="icons/icon-192.png" alt=""><span>Il mio Orto</span></div>
+    <div class="brand">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="menu">
+        <span></span><span></span><span></span>
+      </button>
+      <img src="icons/icon-192.png" alt=""><span>Il mio Orto</span>
+    </div>
     <div class="zone-switch" id="zoneSwitch" role="radiogroup" aria-label="Zona climatica"></div>
-    <a class="acc-btn" href="#/account" aria-label="Account" title="Account">👤</a>
+    <nav class="menu" id="menu" aria-label="Sezioni" hidden>
+      <a href="#/mese" data-tab="mese"><span class="ti">📅</span>Questo mese</a>
+      <a href="#/cassoni" data-tab="cassoni"><span class="ti">🌱</span>Il mio orto</a>
+      <a href="#/colture" data-tab="colture"><span class="ti">🥕</span>Colture</a>
+      <a href="#/guida" data-tab="guida"><span class="ti">📖</span>Guida</a>
+      <a href="#/account" data-tab="account"><span class="ti">👤</span>Account</a>
+    </nav>
   </header>
+  <div class="menu-velo" id="menuVelo" hidden></div>
 
   <main id="view" tabindex="-1"></main>
-
-  <nav class="tabbar" aria-label="Sezioni">
-    <a href="#/mese" data-tab="mese"><span class="ti">📅</span><span>Questo mese</span></a>
-    <a href="#/cassoni" data-tab="cassoni"><span class="ti">🌱</span><span>Il mio orto</span></a>
-    <a href="#/colture" data-tab="colture"><span class="ti">🥕</span><span>Colture</span></a>
-    <a href="#/guida" data-tab="guida"><span class="ti">📖</span><span>Guida</span></a>
-  </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
