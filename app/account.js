@@ -112,6 +112,16 @@ window.OrtoAccount = function (ctx) {
     Object.assign(st.profilo, { luogo, lat, lon });
     try { sessionStorage.removeItem('orto.meteo2'); } catch (e) { /* ignore */ }
   }
+  // Nome del comune dalle coordinate (servizio gratuito pensato per l'uso dal browser).
+  async function nomeLuogo(lat, lon) {
+    try {
+      const r = await fetch(`https://api-bdc.io/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=it`);
+      const j = await r.json();
+      const comune = j.city || j.locality;
+      if (comune) return j.principalSubdivision ? `${comune} (${j.principalSubdivision})` : comune;
+    } catch (e) { /* ignore */ }
+    return `Posizione attuale (${String(lat).replace('.', ',')}, ${String(lon).replace('.', ',')})`;
+  }
   async function cercaComune(q) {
     const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=it&countryCode=IT`);
     const j = await r.json();
@@ -353,13 +363,24 @@ window.OrtoAccount = function (ctx) {
           };
         } catch (err) { ris.innerHTML = '<span class="muted small">Ricerca non disponibile, riprova.</span>'; }
       };
-      root.querySelector('#posAttuale').onclick = () => {
-        if (!navigator.geolocation) return mostra('Posizione non disponibile su questo dispositivo.');
+      const bPos = root.querySelector('#posAttuale');
+      bPos.onclick = () => {
+        if (!navigator.geolocation) return mostra('Posizione non disponibile su questo dispositivo: cerca il comune per nome.');
+        bPos.disabled = true;
+        bPos.textContent = '📍 Rilevo la posizione…';
         navigator.geolocation.getCurrentPosition(async pos => {
           // Arrotondata a ~1 km: basta per il meteo e non salva la posizione esatta.
           const lat = Math.round(pos.coords.latitude * 100) / 100, lon = Math.round(pos.coords.longitude * 100) / 100;
-          try { await salvaPosizione('Posizione attuale', lat, lon); mostra('', 'Posizione salvata.'); } catch (err) { mostra('Salvataggio non riuscito: ' + err.message); }
-        }, () => mostra('Non è stato possibile leggere la posizione: controlla i permessi.'), { maximumAge: 600000, timeout: 15000 });
+          const nome = await nomeLuogo(lat, lon);
+          try { await salvaPosizione(nome, lat, lon); mostra('', 'Posizione salvata: ' + nome + '.'); } catch (err) { mostra('Salvataggio non riuscito: ' + err.message); }
+        }, err => {
+          const motivi = {
+            1: 'Permesso negato: consenti la posizione per questo sito nelle impostazioni del browser (o del telefono), oppure cerca il comune per nome.',
+            2: 'Posizione non disponibile: controlla che la localizzazione (GPS) del telefono sia attiva, oppure cerca il comune per nome.',
+            3: 'Il telefono ci sta mettendo troppo a trovare la posizione: riprova all\'aperto, oppure cerca il comune per nome.'
+          };
+          mostra(motivi[err && err.code] || 'Non è stato possibile leggere la posizione: cerca il comune per nome.');
+        }, { maximumAge: 600000, timeout: 20000 });
       };
     }
 

@@ -1,5 +1,5 @@
 // Service worker: rende l'app utilizzabile offline. Aumentare VERSION a ogni rilascio.
-const VERSION = 'orto-v14';
+const VERSION = 'orto-v15';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'cassoni.js', 'account.js', 'promemoria.js', 'config.js', 'data/colture.js', 'data/foto.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
