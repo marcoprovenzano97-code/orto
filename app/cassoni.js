@@ -197,6 +197,21 @@ window.OrtoCassoni = function (ctx) {
       for (let r = 1; r < rows; r++) s += `<line x1="${P(0, r, H)[0]}" y1="${P(0, r, H)[1]}" x2="${P(cols, r, H)[0]}" y2="${P(cols, r, H)[1]}" stroke="rgba(255,255,255,.07)"/>`;
     }
 
+    // Camminamenti e pacciamatura sulla superficie, divisori come assi
+    const cella = (r, c, fill, op = 1) => poly([P(c, r, H), P(c + 1, r, H), P(c + 1, r + 1, H), P(c, r + 1, H)], fill, `opacity="${op}" stroke="rgba(0,0,0,.12)" stroke-width=".6"`);
+    Object.entries(p.celle).forEach(([rc, v]) => {
+      const cam = camminoDi(v), [r, c] = rc.split(',').map(Number);
+      if (cam && r < rows && c < cols) s += cella(r, c, CAMMINI[cam].iso);
+    });
+    Object.keys(p.pacciame || {}).forEach(rc => {
+      const [r, c] = rc.split(',').map(Number);
+      if (r < rows && c < cols && !camminoDi(p.celle[rc])) s += cella(r, c, '#d9b86a', .55);
+    });
+    (cs.divisori || []).filter(r => r > 0 && r < rows).forEach(r => {
+      const a = P(0, r, H + 3), z = P(cols, r, H + 3);
+      s += `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${z[0].toFixed(1)}" y2="${z[1].toFixed(1)}" stroke="#a06f45" stroke-width="4" stroke-linecap="round"/>`;
+    });
+
     // Piante, dalla più lontana alla più vicina
     const piante = Object.entries(p.celle).map(([rc, id]) => { const [r, c] = rc.split(',').map(Number); return { r, c, id }; })
       .filter(x => x.r < rows && x.c < cols && BY_ID[x.id])
@@ -353,7 +368,7 @@ window.OrtoCassoni = function (ctx) {
           <div id="palette">${htmlPalette(cs, k)}</div>
           <div class="grid-wrap">
             <div class="nord">↑ Nord</div>
-            <div class="grid ${ui.pennello ? 'painting' : ''}" id="grid" style="grid-template-columns:repeat(${cols},1fr);max-width:${cols * 52}px">${htmlCelle(cs, k)}</div>
+            <div class="grid disegno ${ui.pennello ? 'painting' : ''}" id="grid" style="max-width:${Math.round((cols * S + 90) * 0.92)}px">${htmlDisegno(cs, k)}</div>
           </div>
           <div id="riepilogo"></div>
         </section>
@@ -545,32 +560,147 @@ window.OrtoCassoni = function (ctx) {
     return h;
   }
 
+  // ── Strumenti di disegno: camminamenti, pacciamatura, divisori ──
+  // Nelle celle, oltre agli id delle colture, possono esserci camminamenti "cam:<materiale>".
+  // La pacciamatura sta in piano.pacciame { "r,c": 1 }; i divisori del cassone in cs.divisori [righe].
+  const CAMMINI = {
+    mattoni: { nome: 'Mattoni', em: '🧱', iso: '#b45a3c' },
+    pietre:  { nome: 'Pietre',  em: '🪨', iso: '#a69c8e' },
+    paglia:  { nome: 'Paglia',  em: '🌾', iso: '#d9b86a' },
+    erba:    { nome: 'Erba',    em: '🌿', iso: '#8fb35a' }
+  };
+  const camminoDi = v => typeof v === 'string' && v.startsWith('cam:') && CAMMINI[v.slice(4)] ? v.slice(4) : null;
+  // Rampicanti che vogliono una rete: compare sul lato nord se ce n'è almeno uno.
+  const RAMPICANTI = new Set(['cetriolo', 'fagiolo', 'pisello']);
+  const SUGGERIMENTO = {
+    gomma: 'Tocca o trascina sulle celle per svuotarle.',
+    pacciame: 'Tocca o trascina per stendere (o togliere) la paglia sulla terra: trattiene l\'umidità e frena le erbacce.',
+    divisorio: 'Tocca una cella per mettere (o togliere) un\'asse divisoria sul suo lato nord.'
+  };
+
   function htmlPalette(cs, k) {
     const rot = rotazione(cs, k), fr = famRecenti(cs, k);
     const ordine = { consigliata: 0, possibile: 1, evita: 2 };
     const lista = C.filter(c => ui.tutte || adatta(c, k) || coltureDi(piano(cs, k)).includes(c.id))
       .map(c => ({ c, v: valuta(c, cs, k, fr, rot) }))
       .sort((a, b) => ordine[a.v.cat] - ordine[b.v.cat] || a.c.nome.localeCompare(b.c.nome));
-    const sel = ui.pennello;
+    const sel = ui.pennello, cam = camminoDi(sel);
+    const testo = !sel ? 'Scegli una coltura o una struttura, poi tocca le celle dell’aiuola (ogni cella = 30×30 cm).'
+      : SUGGERIMENTO[sel] || (cam ? `Tocca o trascina per fare un camminamento in <strong>${CAMMINI[cam].nome.toLowerCase()}</strong>.` : `Tocca o trascina sulle celle per piantare <strong>${nome(sel)}</strong>.`);
+    const btn = (p, label, cls = '', title = '') => `<button class="pbtn ${cls}" data-p="${p}" aria-pressed="${sel === p}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
     return `
-      <p class="muted small" style="margin:0 0 8px">${sel ? (sel === 'gomma' ? 'Tocca o trascina sulle celle per svuotarle.' : `Tocca o trascina sulle celle per piantare <strong>${nome(sel)}</strong>.`) : 'Scegli una coltura, poi tocca le celle dell’aiuola (ogni cella = 30×30 cm).'}</p>
+      <p class="muted small" style="margin:0 0 8px">${testo}</p>
+      <p class="pal-gruppo">Strutture</p>
+      <div class="palette strutture">
+        ${btn('gomma', '🧽 Gomma')}
+        ${Object.entries(CAMMINI).map(([m, x]) => btn('cam:' + m, `${x.em} ${x.nome}`, 'strutt', 'Camminamento in ' + x.nome.toLowerCase())).join('')}
+        ${btn('pacciame', '🍂 Pacciamatura', 'strutt')}
+        ${tipoDi(cs) !== 'terra' ? btn('divisorio', '🪵 Divisorio', 'strutt') : ''}
+      </div>
+      <p class="pal-gruppo">Colture</p>
       <div class="palette">
-        <button class="pbtn" data-p="gomma" aria-pressed="${sel === 'gomma'}">🧽 Gomma</button>
-        ${lista.map(x => `<button class="pbtn ${x.v.cat}" data-p="${x.c.id}" aria-pressed="${sel === x.c.id}" title="${esc(x.v.motivo)}">${x.c.emoji} ${esc(x.c.nome)}${x.v.cat === 'consigliata' ? ' ★' : x.v.cat === 'evita' ? ' ⚠' : ''}</button>`).join('')}
+        ${lista.map(x => btn(x.c.id, `${x.c.emoji} ${esc(x.c.nome)}${x.v.cat === 'consigliata' ? ' ★' : x.v.cat === 'evita' ? ' ⚠' : ''}`, x.v.cat, x.v.motivo)).join('')}
       </div>
       <label class="toggle small" style="margin-top:8px"><input type="checkbox" id="tutte" ${ui.tutte ? 'checked' : ''}> Mostra anche le colture fuori stagione</label>
       <p class="muted small" style="margin:0">★ consigliata dalla rotazione · ⚠ famiglia già coltivata qui di recente</p>`;
   }
 
-  function htmlCelle(cs, k, conf) {
+  // Trame del disegno (prefisso "dz-" per non scontrarsi con altri id della pagina).
+  const S = 60;   // lato cella nel disegno
+  const TRAME = `<defs>
+    <pattern id="dz-erba" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#8fb35a"/>
+      <path d="M2 14 l2 -6 M7 15 l1 -7 M12 14 l2 -5 M5 6 l1 -4 M11 7 l2 -5" stroke="#6f9a3f" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M9 12 l-1 -5 M14 9 l1 -4" stroke="#a6c870" stroke-width="1.2" stroke-linecap="round"/></pattern>
+    <pattern id="dz-suolo" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#6b4a32"/>
+      <circle cx="4" cy="5" r="1.4" fill="#57391f"/><circle cx="14" cy="3" r="1" fill="#7d5a3d"/><circle cx="9" cy="12" r="1.6" fill="#57391f"/>
+      <circle cx="17" cy="15" r="1.2" fill="#836045"/><circle cx="3" cy="17" r="1" fill="#7d5a3d"/><circle cx="12" cy="18" r=".8" fill="#4e3219"/></pattern>
+    <pattern id="dz-solchi" width="${S}" height="${S}" patternUnits="userSpaceOnUse"><rect width="${S}" height="${S}" fill="url(#dz-suolo)"/>
+      <path d="M0 ${S / 2} H${S}" stroke="#4e3219" stroke-width="5" opacity=".35"/><path d="M0 ${S / 2 - 4} H${S}" stroke="#8a6648" stroke-width="2" opacity=".35"/></pattern>
+    <pattern id="dz-mattoni" width="30" height="15" patternUnits="userSpaceOnUse"><rect width="30" height="15" fill="#d6c3a5"/>
+      <rect x="1" y="1" width="28" height="6" rx="1" fill="#b45a3c"/><rect x="-14" y="8.5" width="28" height="6" rx="1" fill="#a64e33"/><rect x="16" y="8.5" width="28" height="6" rx="1" fill="#bc6646"/></pattern>
+    <pattern id="dz-pietre" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#cdbfa8"/>
+      <ellipse cx="11" cy="11" rx="9" ry="7" fill="#9c9488"/><ellipse cx="29" cy="14" rx="8" ry="9" fill="#ada395"/>
+      <ellipse cx="14" cy="30" rx="10" ry="7" fill="#a69c8e"/><ellipse cx="32" cy="32" rx="7" ry="6" fill="#958d81"/></pattern>
+    <pattern id="dz-paglia" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#d9b86a"/>
+      <path d="M1 4 l12 3 M6 12 l14 -4 M2 19 l13 2 M12 22 l10 -6 M15 3 l8 5" stroke="#b8933f" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M4 9 l9 1 M10 16 l11 1" stroke="#ead08d" stroke-width="1.3" stroke-linecap="round"/></pattern>
+    <pattern id="dz-pavimento" width="48" height="48" patternUnits="userSpaceOnUse"><rect width="48" height="48" fill="#e2d6c4"/>
+      <path d="M0 0 H48 V48" fill="none" stroke="#cbbca6" stroke-width="2"/></pattern>
+    <pattern id="dz-legno" width="120" height="24" patternUnits="userSpaceOnUse"><rect width="120" height="24" fill="#a8743f"/>
+      <path d="M0 6 C 30 4 60 8 120 5 M0 13 C 40 15 80 11 120 14 M0 19 C 30 18 70 21 120 19" stroke="#8a5a2b" stroke-width="1.3" fill="none"/>
+      <ellipse cx="70" cy="11" rx="5" ry="2.5" fill="none" stroke="#7a4d22" stroke-width="1.2"/></pattern>
+    <pattern id="dz-legnoV" width="24" height="120" patternUnits="userSpaceOnUse"><rect width="24" height="120" fill="#a06c38"/>
+      <path d="M6 0 C 4 30 8 60 5 120 M13 0 C 15 40 11 80 14 120 M19 0 C 18 30 21 70 19 120" stroke="#84552a" stroke-width="1.3" fill="none"/></pattern>
+    <radialGradient id="dz-foglie"><stop offset="0" stop-color="#7fb046"/><stop offset=".7" stop-color="#5f9435"/><stop offset="1" stop-color="#4c7d2a" stop-opacity="0"/></radialGradient>
+  </defs>`;
+
+  // Disegno dall'alto dell'aiuola (Nord in alto) con le celle cliccabili sopra.
+  function htmlDisegno(cs, k, conf) {
     const p = piano(cs, k) || { celle: {} };
+    const celle = p.celle || {}, pac = p.pacciame || {};
     const { cols, rows } = dimensioni(cs);
-    let h = '';
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const rc = r + ',' + c, id = p.celle[rc], cr = id && BY_ID[id];
-      h += `<button class="cella ${cr ? 'piena' : ''} ${conf && conf.has(rc) ? 'conf' : ''}" data-rc="${rc}" ${cr ? `style="--tint:${FAM[cr.fam].colore}40" title="${esc(cr.nome)}"` : 'title="vuota"'}>${cr ? cr.emoji : ''}</button>`;
+    const tipo = tipoDi(cs);
+    const conRete = Object.values(celle).some(id => RAMPICANTI.has(id));
+    const B = tipo === 'cassone' ? 22 : tipo === 'vaso' ? 14 : 8;     // spessore del bordo
+    const M = tipo === 'terra' ? 22 : 16;                              // margine esterno
+    const T = conRete ? 34 : 0;                                        // spazio per la rete a nord
+    const x0 = M + B, y0 = M + B + T, w = cols * S, h = rows * S;
+    const W = w + 2 * (M + B), H = h + 2 * (M + B) + T;
+    const fondo = tipo === 'terra' ? 'dz-erba' : tipo === 'vaso' ? 'dz-pavimento' : 'dz-pietre';
+    let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(cs.nome)}, vista dall'alto">${TRAME}
+      <rect width="${W}" height="${H}" rx="14" fill="url(#${fondo})"/>`;
+    if (conRete) {
+      s += `<g stroke="#ece5d6" stroke-width="2">${Array.from({ length: cols * 3 + 1 }, (_, i) => `<line x1="${x0 + i * S / 3}" y1="${M + 4}" x2="${x0 + i * S / 3}" y2="${y0 - B}"/>`).join('')}
+        ${[0, 1, 2].map(i => `<line x1="${x0}" y1="${M + 4 + i * 11}" x2="${x0 + w}" y2="${M + 4 + i * 11}"/>`).join('')}</g>
+        <rect x="${x0 - 4}" y="${M - 2}" width="8" height="${y0 - B - M + 2}" fill="#7a4d22"/><rect x="${x0 + w - 4}" y="${M - 2}" width="8" height="${y0 - B - M + 2}" fill="#7a4d22"/>`;
     }
-    return h;
+    // Bordo
+    if (tipo === 'cassone') {
+      const angoli = [[x0 - B, y0 - B], [x0 + w, y0 - B], [x0 - B, y0 + h], [x0 + w, y0 + h]];
+      s += `<rect x="${x0 - B + 5}" y="${y0 - B + 8}" width="${w + 2 * B}" height="${h + 2 * B}" fill="#000" opacity=".18"/>
+        <rect x="${x0 - B}" y="${y0 - B}" width="${w + 2 * B}" height="${B}" fill="url(#dz-legno)"/>
+        <rect x="${x0 - B}" y="${y0 + h}" width="${w + 2 * B}" height="${B}" fill="url(#dz-legno)"/>
+        <rect x="${x0 - B}" y="${y0}" width="${B}" height="${h}" fill="url(#dz-legnoV)"/>
+        <rect x="${x0 + w}" y="${y0}" width="${B}" height="${h}" fill="url(#dz-legnoV)"/>
+        ${angoli.map(([x, y]) => `<rect x="${x}" y="${y}" width="${B}" height="${B}" fill="#7a4d22"/><circle cx="${x + B / 2}" cy="${y + B / 2}" r="2.5" fill="#4a2e14"/>`).join('')}
+        <rect x="${x0 - B}" y="${y0 - B}" width="${w + 2 * B}" height="${h + 2 * B}" fill="none" stroke="#5e3a18" stroke-width="2"/>`;
+    } else if (tipo === 'vaso') {
+      s += `<rect x="${x0 - B + 4}" y="${y0 - B + 6}" width="${w + 2 * B}" height="${h + 2 * B}" rx="12" fill="#000" opacity=".16"/>
+        <rect x="${x0 - B}" y="${y0 - B}" width="${w + 2 * B}" height="${h + 2 * B}" rx="12" fill="#c46a43" stroke="#9d4f2c" stroke-width="2"/>
+        <rect x="${x0 - B / 2}" y="${y0 - B / 2}" width="${w + B}" height="${h + B}" rx="8" fill="none" stroke="#e08f66" stroke-width="2"/>`;
+    } else {
+      s += `<rect x="${x0 - B}" y="${y0 - B}" width="${w + 2 * B}" height="${h + 2 * B}" rx="10" fill="#5a3d27" opacity=".55"/>`;
+    }
+    // Terra, camminamenti, pacciamatura
+    s += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#${tipo === 'terra' ? 'dz-solchi' : 'dz-suolo'})"/>`;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rc = r + ',' + c, x = x0 + c * S, y = y0 + r * S, cam = camminoDi(celle[rc]);
+      if (cam) s += `<rect x="${x}" y="${y}" width="${S}" height="${S}" fill="url(#dz-${cam === 'erba' ? 'erba' : cam})"/>`;
+      else if (pac[rc]) s += `<rect x="${x}" y="${y}" width="${S}" height="${S}" fill="url(#dz-paglia)" opacity=".6"/>`;
+    }
+    for (let c = 1; c < cols; c++) s += `<line x1="${x0 + c * S}" y1="${y0}" x2="${x0 + c * S}" y2="${y0 + h}" stroke="#fff" stroke-opacity=".1"/>`;
+    for (let r = 1; r < rows; r++) s += `<line x1="${x0}" y1="${y0 + r * S}" x2="${x0 + w}" y2="${y0 + r * S}" stroke="#fff" stroke-opacity=".1"/>`;
+    // Divisori
+    (cs.divisori || []).filter(r => r > 0 && r < rows).forEach(r => {
+      s += `<rect x="${x0}" y="${y0 + r * S - 6}" width="${w}" height="12" fill="url(#dz-legno)" stroke="#5e3a18" stroke-width="1"/>`;
+    });
+    // Piante: ombra, cespo di foglie, icona; tutore per le piante alte
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const id = celle[r + ',' + c], cr = BY_ID[id];
+      if (!cr) continue;
+      const cx = x0 + c * S + S / 2, cy = y0 + r * S + S / 2, sc = ALTE.has(id) ? 1.08 : .92;
+      s += `<ellipse cx="${cx + 3}" cy="${cy + 5}" rx="${21 * sc}" ry="${18 * sc}" fill="#000" opacity=".22"/>
+        <circle cx="${cx}" cy="${cy}" r="${22 * sc}" fill="url(#dz-foglie)"/>
+        <text x="${cx}" y="${cy + 10 * sc}" font-size="${29 * sc}" text-anchor="middle">${cr.emoji}</text>`;
+      if (ALTE.has(id)) s += `<circle cx="${cx + 16}" cy="${cy - 16}" r="3" fill="#c9a77a" stroke="#8a6a44"/>`;
+    }
+    // Celle cliccabili (sopra a tutto) ed evidenza dei conflitti
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rc = r + ',' + c, v = celle[rc], cr = BY_ID[v], cam = camminoDi(v);
+      if (conf && conf.has(rc)) s += `<rect x="${x0 + c * S + 2}" y="${y0 + r * S + 2}" width="${S - 4}" height="${S - 4}" rx="6" fill="none" stroke="#e0463a" stroke-width="4"/>`;
+      s += `<rect class="cella" data-rc="${rc}" x="${x0 + c * S}" y="${y0 + r * S}" width="${S}" height="${S}" fill="#000" fill-opacity="0"><title>${cr ? esc(cr.nome) : cam ? 'Camminamento in ' + CAMMINI[cam].nome.toLowerCase() : 'vuota'}</title></rect>`;
+    }
+    return s + '</svg>';
   }
 
   function htmlRiepilogo(an) {
@@ -620,7 +750,7 @@ window.OrtoCassoni = function (ctx) {
 
     function aggiorna() {
       const an = analizza(cs, k);
-      grid.innerHTML = htmlCelle(cs, k, an.conf);
+      grid.innerHTML = htmlDisegno(cs, k, an.conf);
       root.querySelector('#riepilogo').innerHTML = htmlRiepilogo(an);
       root.querySelector('#avvisi').innerHTML = htmlAvvisi(an);
       root.querySelector('.iso-stage').innerHTML = isoSVG(cs, k);
@@ -636,10 +766,12 @@ window.OrtoCassoni = function (ctx) {
       e.preventDefault();
       Object.assign(cs, leggiForm(f));
       const { cols, rows } = dimensioni(cs);
-      Object.values(cs.piani || {}).forEach(p => Object.keys(p.celle).forEach(rc => {
-        const [r, c] = rc.split(',').map(Number);
-        if (r >= rows || c >= cols) delete p.celle[rc];
-      }));
+      const fuori = rc => { const [r, c] = rc.split(',').map(Number); return r >= rows || c >= cols; };
+      Object.values(cs.piani || {}).forEach(p => {
+        Object.keys(p.celle || {}).forEach(rc => { if (fuori(rc)) delete p.celle[rc]; });
+        Object.keys(p.pacciame || {}).forEach(rc => { if (fuori(rc)) delete p.pacciame[rc]; });
+      });
+      if (cs.divisori) cs.divisori = cs.divisori.filter(r => r > 0 && r < rows);
       salva(); rerender();
     };
     root.querySelector('#elimina').onclick = () => {
@@ -667,34 +799,47 @@ window.OrtoCassoni = function (ctx) {
       root.querySelector('#palette').innerHTML = htmlPalette(cs, k);
     };
 
-    // Pittura sulla griglia (tocco o trascinamento)
-    let attivo = false, modificato = false;
-    function dipingi(b) {
-      const p = piano(cs, k, true), rc = b.dataset.rc;
-      if (ui.pennello === 'gomma') {
-        if (!p.celle[rc]) return;
-        delete p.celle[rc];
-        b.textContent = ''; b.classList.remove('piena');
+    // Pittura sul disegno (tocco o trascinamento)
+    let attivo = false, modificato = false, stendi = true;
+    function dipingi(rc) {
+      const p = piano(cs, k, true), t = ui.pennello;
+      p.pacciame = p.pacciame || {};
+      if (t === 'gomma') {
+        if (!p.celle[rc] && !p.pacciame[rc]) return;
+        delete p.celle[rc]; delete p.pacciame[rc];
+      } else if (t === 'pacciame') {
+        if (camminoDi(p.celle[rc]) || !!p.pacciame[rc] === stendi) return;
+        if (stendi) p.pacciame[rc] = 1; else delete p.pacciame[rc];
       } else {
-        if (p.celle[rc] === ui.pennello) return;
-        p.celle[rc] = ui.pennello;
-        const cr = BY_ID[ui.pennello];
-        b.textContent = cr.emoji; b.classList.add('piena'); b.style.setProperty('--tint', FAM[cr.fam].colore + '40');
+        if (p.celle[rc] === t) return;
+        p.celle[rc] = t;
+        if (camminoDi(t)) delete p.pacciame[rc];
       }
       modificato = true;
+      grid.innerHTML = htmlDisegno(cs, k);   // ridisegno immediato; i controlli si aggiornano a fine tratto
     }
+    const cellaDa = (x, y) => { const el = document.elementFromPoint(x, y); const b = el && el.closest && el.closest('.cella'); return b && grid.contains(b) ? b.dataset.rc : null; };
     grid.addEventListener('pointerdown', e => {
       const b = e.target.closest('.cella');
       if (!b) return;
       if (!ui.pennello) { root.querySelector('#palette').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       e.preventDefault();
-      attivo = true; dipingi(b);
+      const rc = b.dataset.rc;
+      if (ui.pennello === 'divisorio') {
+        const r = +rc.split(',')[0];
+        if (r === 0) return;
+        cs.divisori = (cs.divisori || []).includes(r) ? cs.divisori.filter(x => x !== r) : [...(cs.divisori || []), r];
+        salva(); aggiorna();
+        return;
+      }
+      const p = piano(cs, k);
+      stendi = !(p && p.pacciame && p.pacciame[rc]);
+      attivo = true; dipingi(rc);
     });
     grid.addEventListener('pointermove', e => {
       if (!attivo) return;
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const b = el && el.closest('.cella');
-      if (b && grid.contains(b)) dipingi(b);
+      const rc = cellaDa(e.clientX, e.clientY);
+      if (rc) dipingi(rc);
     });
     const fine = () => {
       if (!attivo) return;
