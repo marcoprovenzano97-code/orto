@@ -1,11 +1,12 @@
-// Foto reali da Unsplash (licenza gratuita, anche commerciale): ID usati da app.js e cassoni.js.
+// Foto reali. 'mie:<nome>' = foto dell'orto di Marco in app/foto/<nome>-800.jpg e -1600.jpg;
+// gli altri sono ID di Unsplash (licenza gratuita, anche commerciale).
 window.FOTO_COLTURE = {
   pomodoro: '1598512752271-33f913a5af13',
-  peperone: '1604488943825-f95dc6796ca5',
-  melanzana: '1613881553903-4543f5f2cac9',
+  peperone: 'mie:peperone',
+  melanzana: 'mie:melanzana',
   peperoncino: '1761669411746-8f401c29e9a6',
   patata: '1675501344642-92d35d90fe51',
-  zucchina: '1661604661117-790b6cb80108',
+  zucchina: 'mie:zucchina',
   zucca: '1508298593117-02b95f83abca',
   cetriolo: '1518568403628-df55701ade9e',
   melone: '1782380370791-25afb178ae22',
@@ -18,11 +19,11 @@ window.FOTO_COLTURE = {
   broccolo: '1606585333304-a7fa1ca4376c',
   cappuccio: '1697346327617-c333613a349a',
   cavolonero: '1669062265357-6af399100a46',
-  verza: '1652860213441-6622f9fec77f',
+  verza: 'mie:verza',
   rucola: '1514910103003-aa6b5e4239ad',
   ravanello: '1593026122758-19bebc625104',
   cimedirapa: '1584270354949-c26b0d5b4a0c',
-  lattuga: '1692606280428-7df25e4daefb',
+  lattuga: 'mie:lattuga',
   radicchio: '1615368688859-6aaf9e7169f7',
   indivia: '1515356956468-873dd257f911',
   carciofo: '1518735869015-566a18eae4be',
@@ -43,12 +44,13 @@ window.FOTO_COLTURE = {
   asparago: '1519590350802-eb212e2ea536'
 };
 window.FOTO_PAGINE = {
-  copertina: '1591857177580-dc82b9ac4e1e',
-  aiuole: '1601001815894-4bb6c81416d7',
-  semina: '1597868165956-03a6827955b1',
-  raccolto: '1624668430039-0175a0fbf006',
-  terra: '1702995878564-17fef6fa4e57',
+  copertina: 'mie:copertina',
+  aiuole: 'mie:aiuole',
+  cassone: '1601001815894-4bb6c81416d7',
+  semina: 'mie:semina',
+  raccolto: 'mie:raccolto',
+  terra: 'mie:terra',
   vaso: '1632770464350-e73ae4aaa11c',
-  guida: '1611735341450-74d61e660ad2',
+  guida: 'mie:guida',
   account: '1523301551780-cd17359a95d0'
 };

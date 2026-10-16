@@ -79,9 +79,13 @@
   // ── Viste ──────────────────────────────────────────────
   // Foto reali da Unsplash (licenza gratuita anche per uso commerciale).
   const FOTO = window.FOTO_PAGINE;   // data/foto.js
-  const foto = (id, w) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=72`;
-  const img = (id, alt, cls, sizes) =>
-    `<img class="${cls}" src="${foto(id, 1000)}" srcset="${[600, 1000, 1600, 2200].map(w => `${foto(id, w)} ${w}w`).join(', ')}" sizes="${sizes}" alt="${esc(alt)}" loading="${cls === 'hero-img' ? 'eager' : 'lazy'}" decoding="async">`;
+  // "mie:<nome>" = foto locali in app/foto (800 e 1600 px); altrimenti ID di Unsplash.
+  const mia = id => id.startsWith('mie:') ? id.slice(4) : null;
+  const foto = (id, w) => mia(id) ? `foto/${mia(id)}-${w <= 900 ? 800 : 1600}.jpg` : `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=72`;
+  const img = (id, alt, cls, sizes) => {
+    const larg = mia(id) ? [800, 1600] : [600, 1000, 1600, 2200];
+    return `<img class="${cls}" src="${foto(id, 1000)}" srcset="${larg.map(w => `${foto(id, w)} ${w}w`).join(', ')}" sizes="${sizes}" alt="${esc(alt)}" loading="${cls === 'hero-img' ? 'eager' : 'lazy'}" decoding="async">`;
+  };
 
   function viewHome() {
     const m = MESE_OGGI, z = state.zona;
@@ -103,7 +107,7 @@
       </section>`;
     return `
       <section class="hero">
-        ${img(FOTO.copertina, 'Lattuga ed erba cipollina in un cassone di legno in un orto', 'hero-img', '100vw')}
+        ${img(FOTO.copertina, 'Orto con porri, peperoni e zucchine tra camminamenti in pietra', 'hero-img', '100vw')}
         <div class="hero-velo"></div>
         <div class="hero-testo">
           <p class="eyebrow">L'app per il tuo orto</p>
@@ -127,13 +131,13 @@
           <div class="hm-grid">${colonne}</div>
         </section>
 
-        ${sezione(FOTO.aiuole, 'Persona al lavoro tra aiuole rialzate piene di ortaggi', 'Il mio orto', 'Progetta le tue aiuole',
+        ${sezione(FOTO.aiuole, 'Aiuola bordata con cavoli e piantine appena trapiantate', 'Il mio orto', 'Progetta le tue aiuole',
           'Disegna cassoni, aiuole in piena terra e vasi cella per cella. L\'app controlla consociazioni, spazio tra le piante e ombra, e ti dice cosa piantare per rispettare la rotazione.',
           '#/cassoni', 'Disegna la tua aiuola', false)}
-        ${sezione(FOTO.semina, 'Mani che piantano una piantina nel terreno', 'Calendario', 'Semina al momento giusto',
+        ${sezione(FOTO.semina, 'Piantine appena trapiantate in file tra le pietre', 'Calendario', 'Semina al momento giusto',
           'Semine, trapianti e raccolte mese per mese, tarati sulla tua zona: Nord, Centro o Sud e isole. Niente più piantine bruciate dal gelo o semine fuori tempo.',
           '#/mese', 'Apri il calendario', true)}
-        ${sezione(FOTO.raccolto, 'Cassetta di legno piena di pomodori, peperoni, cipolle ed erbe appena raccolti', 'Colture', 'Conosci ogni ortaggio',
+        ${sezione(FOTO.raccolto, 'Cassetta del raccolto con zucchina, melanzane, pomodori e cipolle', 'Colture', 'Conosci ogni ortaggio',
           `Schede tecniche di ${C.length} colture: quanta acqua, che terreno, distanze, tempi di raccolta, piante amiche e nemiche, malattie e consigli pratici.`,
           '#/colture', 'Sfoglia le schede', false)}
 
@@ -146,7 +150,7 @@
 
         <footer class="home-footer">
           <a href="#/guida">Guida all'orto</a> · <a href="#/account">Account</a>
-          <p class="muted small">Dati colturali indicativi. Foto: Unsplash.</p>
+          <p class="muted small">Dati colturali indicativi. Foto: il nostro orto e Unsplash.</p>
         </footer>
       </div>`;
   }
@@ -441,7 +445,7 @@
       case 'cassone': {
         const a = cassoni.info(arg);
         if (!a) return { foto: FOTO.aiuole, titolo: 'Aiuola non trovata', crumbs: [['Il mio orto', '#/cassoni'], ['Non trovata']] };
-        return { foto: a.tipo === 'terra' ? FOTO.terra : a.tipo === 'vaso' ? FOTO.vaso : FOTO.aiuole, eyebrow: esc(a.tipoNome), titolo: a.nome, sub: `${a.larghezza} × ${a.lunghezza} cm · ${esc(a.stagione)}`, crumbs: [['Il mio orto', '#/cassoni'], [a.nome]] };
+        return { foto: a.tipo === 'terra' ? FOTO.terra : a.tipo === 'vaso' ? FOTO.vaso : FOTO.cassone, eyebrow: esc(a.tipoNome), titolo: a.nome, sub: `${a.larghezza} × ${a.lunghezza} cm · ${esc(a.stagione)}`, crumbs: [['Il mio orto', '#/cassoni'], [a.nome]] };
       }
       case 'guida': return { foto: FOTO.guida, eyebrow: 'Guida', titolo: 'Guida all\'orto', sub: 'Rotazione, famiglie botaniche, irrigazione e consociazioni.', crumbs: [['Guida']] };
       case 'account': return { foto: FOTO.account, eyebrow: 'Account', titolo: account.utente() ? 'Il tuo account' : 'Accedi o registrati', sub: 'Premium, sincronizzazione, meteo e notifiche.', crumbs: [['Account']] };

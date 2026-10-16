@@ -18,6 +18,7 @@ while ($listener.IsListening) {
             ".css"  { "text/css; charset=utf-8" }
             ".webmanifest" { "application/manifest+json" }
             ".png"  { "image/png" }
+            ".jpg"  { "image/jpeg" }
             default { "application/octet-stream" }
         }
         $res.Headers.Add("Cache-Control", "no-cache")
