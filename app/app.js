@@ -107,7 +107,7 @@
       </section>`;
     return `
       <section class="hero">
-        ${img(FOTO.copertina, 'Orto con porri, peperoni e zucchine tra camminamenti in pietra', 'hero-img', '100vw')}
+        ${img(FOTO.copertina, 'Aiuola con file di piantine appena trapiantate tra le pietre, alberi sullo sfondo', 'hero-img', '100vw')}
         <div class="hero-velo"></div>
         <div class="hero-testo">
           <p class="eyebrow">L'app per il tuo orto</p>
