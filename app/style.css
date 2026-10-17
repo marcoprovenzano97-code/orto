@@ -561,3 +561,36 @@ body.bv-aperto .chat-fab { display: none; }
 .prezzi-form label { display: flex; flex-direction: column; gap: 3px; font-size: .88rem; }
 .prezzi-form input { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
 .form label[hidden] { display: none; }
+
+/* ── Come si fa (schede operative) ───────────────────── */
+.lav-griglia { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 560px) { .lav-griglia { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .lav-griglia { grid-template-columns: repeat(3, 1fr); } }
+.lav-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; color: inherit; text-decoration: none; box-shadow: var(--shadow); transition: transform .15s; }
+.lav-card:hover { transform: translateY(-2px); }
+.lav-foto { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; background: var(--surface-2); }
+.lav-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lav-em { position: absolute; left: 10px; bottom: 10px; width: 38px; height: 38px; display: grid; place-items: center; font-size: 1.3rem; background: var(--surface); border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.lav-testo { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
+.lav-testo strong { font-family: var(--serif); font-size: 1.08rem; }
+.lav-meta { font-size: .8rem; color: var(--green); font-weight: 600; margin-top: 2px; }
+.passi { list-style: none; margin: 0; padding: 0; counter-reset: none; }
+.passi li { border-top: 1px solid var(--line); }
+.passi li:first-child { border-top: 0; }
+.passo { display: grid; grid-template-columns: 22px 30px 1fr; gap: 10px; align-items: start; padding: 12px 0; cursor: pointer; }
+.passo input { width: 20px; height: 20px; margin: 4px 0 0; accent-color: var(--green); }
+.passo-n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: .9rem; }
+.passo-d { display: block; margin-top: 3px; color: var(--muted); font-size: .94rem; line-height: 1.5; }
+.passi li.fatto strong { text-decoration: line-through; text-decoration-color: var(--green); }
+.passi li.fatto .passo-n { background: var(--green); color: var(--surface); }
+.tab-scorri { overflow-x: auto; margin: 0 -4px; }
+.lav-tab { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.lav-tab th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.lav-tab td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lav-tab td:first-child { white-space: nowrap; }
+.lav-tab a { color: inherit; font-weight: 600; text-decoration: none; }
+.schema { display: block; width: 100%; max-width: 470px; height: auto; margin: 0 auto 14px; color: var(--text); border-radius: 12px; overflow: hidden; }
+.calc-ris { margin-top: 10px; }
+.calc-tot { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 8px; }
+.calc-tot strong { font-family: var(--serif); font-size: 1.9rem; color: var(--green); line-height: 1; }
+.lav-dopo { display: block; text-align: right; color: var(--text); text-decoration: none; padding: 4px 2px; }

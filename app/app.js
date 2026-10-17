@@ -301,6 +301,7 @@
           </div>
           ${calendario(c, z)}
           <div class="legend">${ATTIVITA.filter(a => c.cal[z][a.k]).map(a => `<span><span class="dot" style="background:${a.css}"></span>${a.nome}</span>`).join('')}</div>
+          <p class="small" style="margin:10px 0 0">${c.prof ? `Profondità di semina: <strong>${esc(c.prof)}</strong> · ` : ''}Come si fa: ${['sem', 'dir', 'tra'].filter(k => c.cal[z][k]).map(k => `<a href="#/lavori/${lavori.perAttivita[k]}">${{ sem: 'semina in semenzaio', dir: 'semina diretta', tra: 'trapianto' }[k]}</a>`).join(' · ') || '<a href="#/lavori">le schede operative</a>'}</p>
         </section>
 
         <section class="card">
@@ -362,6 +363,11 @@
     const fams = [...new Set(C.map(c => c.fam))];
     return `
       <div class="stack">
+        <a class="card premium-teaser" href="#/lavori">
+          <span class="pt-icon">🧑‍🌾</span>
+          <span><strong>Come si fa: le operazioni passo passo</strong><span class="muted small" style="display:block">Preparare il terreno, riempire un cassone, seminare, trapiantare, pacciamare, fare il compost.</span></span>
+          <span class="chev">›</span>
+        </a>
 
         <section class="card">
           <div class="section-title"><h2>🔄 La rotazione in 4 anni</h2></div>
@@ -421,6 +427,9 @@
   });
   account.collega({ get: cassoni.getDati, set: cassoni.setDati });
 
+  // ── Schede operative "Come si fa" (lavori.js) ──────────
+  const lavori = window.OrtoLavori({ esc, store, state, C, BY_ID, inMese, img, FOTO, cassoni });
+
   // ── Assistente e primo avvio ───────────────────────────
   assistente = window.OrtoAssistente({ esc, store, account });
   const benvenuto = window.OrtoBenvenuto({
@@ -464,6 +473,11 @@
         if (!a) return { foto: FOTO.aiuole, titolo: 'Aiuola non trovata', crumbs: [['Il mio orto', '#/cassoni'], ['Non trovata']] };
         return { foto: a.tipo === 'terra' ? FOTO.terra : a.tipo === 'vaso' ? FOTO.vaso : FOTO.cassone, eyebrow: esc(a.tipoNome), titolo: a.nome, sub: `${a.larghezza} × ${a.lunghezza} cm · ${esc(a.stagione)}`, crumbs: [['Il mio orto', '#/cassoni'], [a.nome]] };
       }
+      case 'lavori': {
+        const g = arg && lavori.info(arg);
+        if (g) return { foto: g.foto, eyebrow: 'Come si fa', titolo: g.titolo, sub: esc(g.sub), crumbs: [['Come si fa', '#/lavori'], [g.titolo]] };
+        return { foto: FOTO.terra, eyebrow: 'Come si fa · ' + zona, titolo: 'Come si fa', sub: 'Vangare, seminare, trapiantare: le operazioni dell\'orto passo passo.', crumbs: [['Come si fa']] };
+      }
       case 'guida': return { foto: FOTO.guida, eyebrow: 'Guida', titolo: 'Guida all\'orto', sub: 'Rotazione, famiglie botaniche, irrigazione e consociazioni.', crumbs: [['Guida']] };
       case 'assistente': return { foto: FOTO.aiuole, eyebrow: 'Assistente', titolo: 'Assistente dell\'orto', sub: 'Chiedi qualsiasi cosa: conosce le tue aiuole, la tua zona e il meteo.', crumbs: [['Assistente']] };
       case 'privacy': return { foto: FOTO.terra, eyebrow: 'Privacy', titolo: 'Informativa privacy', sub: 'Quali dati trattiamo, perché e come puoi controllarli.', crumbs: [['Privacy']] };
@@ -498,6 +512,7 @@
     else if (page === 'cassone') { html = cassoni.viewCassone(arg); bind = v => cassoni.bindCassone(v, arg); tab = 'cassoni'; }
     else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
     else if (page === 'guida') { html = viewGuida(); }
+    else if (page === 'lavori') { html = arg ? lavori.viewScheda(arg) : lavori.viewElenco(); if (arg) bind = v => lavori.bindScheda(v, arg); }
     else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; }
     else if (page === 'privacy') { html = window.OrtoLegale.privacy(); }
     else if (page === 'termini') { html = window.OrtoLegale.termini(); }

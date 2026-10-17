@@ -1105,3 +1105,20 @@ window.COLTURE = [
   };
   window.COLTURE.forEach(c => { c.prezzo = PREZZO[c.id] || 3; if (SEMI_ANNI[c.id]) c.semiAnni = SEMI_ANNI[c.id]; });
 })();
+
+// Profondità di semina (o d'impianto per bulbi, tuberi e zampe), indicativa: regola generale 2–3 volte la grandezza del seme.
+(function () {
+  const PROF = {
+    pomodoro: '0,5 cm', peperone: '0,5 cm', melanzana: '0,5 cm', peperoncino: '0,5 cm', patata: '10–12 cm (tubero)',
+    zucchina: '2–3 cm', zucca: '3 cm', cetriolo: '2 cm', melone: '2 cm', anguria: '2–3 cm', fagiolo: '3–4 cm', fagiolino: '3 cm',
+    pisello: '3–4 cm', fava: '5 cm', cavolfiore: '1 cm', broccolo: '1 cm', cappuccio: '1 cm', cavolonero: '1 cm', verza: '1 cm',
+    rucola: '0,5 cm', ravanello: '1 cm', cimedirapa: '1 cm', lattuga: '0,3 cm (quasi in superficie)', radicchio: '0,5 cm',
+    indivia: '0,5 cm', carciofo: '3–5 cm (carducci)', carota: '0,5–1 cm', sedano: 'in superficie, appena coperto', prezzemolo: '1 cm',
+    finocchio: '1 cm', bietola: '2 cm', spinacio: '2 cm', barbabietola: '2 cm', aglio: '3–5 cm (spicchio, punta in su)',
+    cipolla: '0,5 cm il seme · 2 cm i bulbilli', porro: '1 cm', basilico: '0,3 cm', fragola: 'colletto a filo del terreno',
+    mais: '4 cm', valerianella: '0,5 cm', asparago: '15–20 cm (zampe)', rosmarino: 'in superficie', salvia: '0,5 cm',
+    timo: 'in superficie', menta: 'in superficie', origano: 'in superficie', erbacipollina: '0,5 cm',
+    scalogno: '2–3 cm (bulbo, punta fuori)', rapa: '1 cm'
+  };
+  window.COLTURE.forEach(c => { if (PROF[c.id]) c.prof = PROF[c.id]; });
+})();

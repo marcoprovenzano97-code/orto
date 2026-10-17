@@ -1,6 +1,6 @@
 // Service worker: rende l'app utilizzabile offline. Aumentare VERSION a ogni rilascio.
-const VERSION = 'orto-v24';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'cassoni.js', 'legale.js', 'benvenuto.js', 'assistente.js', 'account.js', 'promemoria.js', 'config.js', 'data/colture.js', 'data/foto.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const VERSION = 'orto-v25';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'cassoni.js', 'legale.js', 'benvenuto.js', 'assistente.js', 'lavori.js', 'account.js', 'promemoria.js', 'config.js', 'data/colture.js', 'data/foto.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
