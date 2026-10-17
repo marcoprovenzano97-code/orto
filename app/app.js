@@ -149,13 +149,16 @@
         </section>
 
         <footer class="home-footer">
-          <a href="#/guida">Guida all'orto</a> · <a href="#/account">Account</a>
+          <a href="#/guida">Guida all'orto</a> · <a href="#/assistente">Assistente</a> · <a href="#/account">Account</a><br>
+          <a href="#/privacy">Privacy</a> · <a href="#/termini">Condizioni d'uso</a>
           <p class="muted small">Dati colturali indicativi. Foto: il nostro orto e Unsplash.</p>
         </footer>
       </div>`;
   }
   function bindHome(root) {
     account.bindOggi(root);
+    // Primo avvio guidato: solo per chi non ha aiuole e non ha fatto l'accesso (chi ha un account ritrova il suo orto).
+    setTimeout(() => { if (!account.utente() && !/^#\/?[a-z]/.test(location.hash)) benvenuto.forseMostra(); }, 1200);
     const giu = root.querySelector('.hero-giu');
     if (giu) giu.onclick = e => { e.preventDefault(); root.querySelector('#home-mese').scrollIntoView({ behavior: 'smooth' }); };
   }
@@ -411,6 +414,13 @@
   });
   account.collega({ get: cassoni.getDati, set: cassoni.setDati });
 
+  // ── Assistente e primo avvio ───────────────────────────
+  const assistente = window.OrtoAssistente({ esc, store, account, rerender });
+  const benvenuto = window.OrtoBenvenuto({
+    esc, store, state, ZONE, cassoni,
+    impostaZona(z) { state.zona = z; store.set('zona', z); renderZone(); account.zonaCambiata(z); }
+  });
+
   // ── Testata delle pagine: foto, percorso e Indietro ────
   // crumbs: [[etichetta, link], ...]; l'ultima voce è la pagina corrente.
   function banner({ foto: id, eyebrow, titolo, sub, crumbs }) {
@@ -448,6 +458,9 @@
         return { foto: a.tipo === 'terra' ? FOTO.terra : a.tipo === 'vaso' ? FOTO.vaso : FOTO.cassone, eyebrow: esc(a.tipoNome), titolo: a.nome, sub: `${a.larghezza} × ${a.lunghezza} cm · ${esc(a.stagione)}`, crumbs: [['Il mio orto', '#/cassoni'], [a.nome]] };
       }
       case 'guida': return { foto: FOTO.guida, eyebrow: 'Guida', titolo: 'Guida all\'orto', sub: 'Rotazione, famiglie botaniche, irrigazione e consociazioni.', crumbs: [['Guida']] };
+      case 'assistente': return { foto: FOTO.aiuole, eyebrow: 'Premium', titolo: 'Assistente dell\'orto', sub: 'Chiedi qualsiasi cosa: conosce le tue aiuole, la tua zona e il meteo.', crumbs: [['Assistente']] };
+      case 'privacy': return { foto: FOTO.terra, eyebrow: 'Privacy', titolo: 'Informativa privacy', sub: 'Quali dati trattiamo, perché e come puoi controllarli.', crumbs: [['Privacy']] };
+      case 'termini': return { foto: FOTO.terra, eyebrow: 'Condizioni', titolo: 'Condizioni d\'uso', sub: 'Le regole del servizio, in parole semplici.', crumbs: [['Condizioni d\'uso']] };
       case 'account': return { foto: FOTO.account, eyebrow: 'Account', titolo: account.utente() ? 'Il tuo account' : 'Accedi o registrati', sub: 'Premium, sincronizzazione, meteo e notifiche.', crumbs: [['Account']] };
     }
     return null;
@@ -473,6 +486,9 @@
     else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
     else if (page === 'guida') { html = viewGuida(); }
     else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; }
+    else if (page === 'assistente') { html = assistente.view(); bind = assistente.bind; }
+    else if (page === 'privacy') { html = window.OrtoLegale.privacy(); }
+    else if (page === 'termini') { html = window.OrtoLegale.termini(); }
     else if (page === 'mese') { html = viewMese(); bind = bindMese; }
     else { html = viewHome(); bind = bindHome; tab = 'home'; }
     const t = tab === 'home' ? null : testata(page, arg);

@@ -208,6 +208,7 @@ window.OrtoAccount = function (ctx) {
 
   // ── Pagina Account ─────────────────────────────────────
   const VANTAGGI = [
+    ['💬', 'Assistente dell’orto', 'chiedi qualsiasi cosa: conosce le tue aiuole, la tua zona e il meteo'],
     ['📷', 'Check-up con foto', 'fotografa una pianta: ti dico se è da raccogliere, potare, annaffiare o curare'],
     ['💧', 'Irrigazione in litri', 'quanta acqua serve oggi a ogni aiuola, dal meteo reale del tuo comune'],
     ['🌦️', 'Avvisi meteo', 'pioggia, caldo, gelate: ogni mattina, solo quando serve'],
@@ -239,6 +240,7 @@ window.OrtoAccount = function (ctx) {
         <form class="form" id="formAccesso">
           <label>Email<input type="email" name="email" required autocomplete="email" value="${esc(st.email)}" placeholder="nome@esempio.it"></label>
           <label>Password<input type="password" name="pw" required minlength="${registra ? 8 : 6}" autocomplete="${registra ? 'new-password' : 'current-password'}"${registra ? ' placeholder="almeno 8 caratteri"' : ''}></label>
+          ${registra ? '<label class="toggle small"><input type="checkbox" name="consenso" required> Ho letto e accetto le <a href="#/termini">condizioni d’uso</a> e l’<a href="#/privacy">informativa privacy</a></label>' : ''}
           <button class="btn primary" type="submit">${registra ? 'Crea account' : 'Entra'}</button>
           ${registra ? '' : '<button class="link" type="button" id="pwDimenticata" style="align-self:flex-start">Password dimenticata?</button>'}
         </form>`;
@@ -290,7 +292,22 @@ window.OrtoAccount = function (ctx) {
           <button class="btn primary" type="submit">Salva password</button>
         </form>
       </details>
-      <button class="btn" id="esci">Esci</button></div>`;
+      <details class="card">
+        <summary>📦 Scarica i miei dati</summary>
+        <p class="muted small" style="margin:0 0 10px">Un file con profilo, aiuole, storico, raccolti ed esiti dei check-up.</p>
+        <button class="btn" id="scaricaDati">Scarica (JSON)</button>
+      </details>
+      <details class="card">
+        <summary>🗑️ Elimina account</summary>
+        <p style="margin:0 0 10px">Cancella <strong>definitivamente</strong> account, profilo, orto sincronizzato, check-up e notifiche. Non si può annullare.</p>
+        <form class="form" id="formElimina">
+          <label>Per confermare scrivi <strong>ELIMINA</strong><input name="conferma" required autocomplete="off"></label>
+          <label class="toggle small"><input type="checkbox" name="locale" checked> Cancella anche le aiuole salvate su questo dispositivo</label>
+          <button class="btn danger" type="submit">Elimina definitivamente</button>
+        </form>
+      </details>
+      <button class="btn" id="esci">Esci</button>
+      <p class="muted small" style="text-align:center;margin:8px 0 0"><a href="#/privacy">Privacy</a> · <a href="#/termini">Condizioni d’uso</a></p></div>`;
     return h;
   }
 
@@ -321,6 +338,7 @@ window.OrtoAccount = function (ctx) {
           return mostra(t);
         }
         if (!data.session) return mostra('', 'Account creato: controlla la posta per confermare l\'indirizzo.');
+        if (st.fase === 'registra') sb.from('profili').update({ consenso: new Date().toISOString() }).eq('id', data.session.user.id).then(() => {});
         st.fase = 'email'; st.errore = ''; st.avviso = '';
       };
       const pd = root.querySelector('#pwDimenticata');
@@ -339,6 +357,37 @@ window.OrtoAccount = function (ctx) {
       const { error } = await sb.auth.updateUser({ password: fn.pw.value });
       if (error) return mostra('Password non salvata: ' + error.message);
       st.fase = 'email'; mostra('', 'Password aggiornata.');
+    };
+    const scarica = root.querySelector('#scaricaDati');
+    if (scarica) scarica.onclick = async () => {
+      occupato(scarica, true);
+      const [{ data: profilo }, { data: checkupDb }] = await Promise.all([
+        sb.from('profili').select('*').eq('id', st.utente.id).maybeSingle(),
+        sb.from('checkup').select('creato, coltura, esito').eq('user_id', st.utente.id).order('creato')
+      ]);
+      const pacchetto = { app: 'Ortogramma', esportato: new Date().toISOString(), email: st.utente.email, profilo, orto: fonte ? fonte.get() : null, checkup: checkupDb || [] };
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(pacchetto, null, 2)], { type: 'application/json' }));
+      a.download = `ortogramma-miei-dati-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      occupato(scarica, false);
+    };
+    const fel = root.querySelector('#formElimina');
+    if (fel) fel.onsubmit = async e => {
+      e.preventDefault();
+      if (fel.conferma.value.trim().toUpperCase() !== 'ELIMINA') return mostra('Per confermare scrivi ELIMINA nel campo.');
+      const b = fel.querySelector('button'); occupato(b, true);
+      try { await disattivaNotifiche(); } catch (err) { /* ignore */ }
+      const { error } = await sb.functions.invoke('elimina-account', { body: {} });
+      if (error) { occupato(b, false); return mostra('Eliminazione non riuscita, riprova o scrivi a ' + window.OrtoLegale.EMAIL + '.'); }
+      if (fel.locale.checked) {
+        try { Object.keys(localStorage).filter(k => k.startsWith('orto.')).forEach(k => localStorage.removeItem(k)); } catch (err) { /* ignore */ }
+        if (fonte) fonte.set({ cassoni: [] });
+      }
+      await sb.auth.signOut({ scope: 'local' });
+      st.utente = null; st.profilo = null; entratoPer = null; st.fase = 'email';
+      mostra('', 'Account eliminato. Grazie per aver usato Ortogramma.');
     };
     const esci = root.querySelector('#esci');
     if (esci) esci.onclick = async () => { await sb.auth.signOut(); st.fase = 'email'; mostra(); };
@@ -409,6 +458,15 @@ window.OrtoAccount = function (ctx) {
     return meteo(p.lat, p.lon);
   }
   // Invia la foto alla funzione "checkup" e restituisce { esito, rimasti }.
+  async function assistente(messaggi) {
+    const { data, error } = await sb.functions.invoke('assistente', { body: { messaggi } });
+    if (error) {
+      let testo = 'Risposta non riuscita, riprova più tardi.';
+      try { const j = await error.context.json(); if (j && j.errore) testo = j.errore; } catch (e) { /* ignore */ }
+      throw new Error(testo);
+    }
+    return data;
+  }
   async function checkup(corpo) {
     const { data, error } = await sb.functions.invoke('checkup', { body: corpo });
     if (error) {
@@ -421,7 +479,7 @@ window.OrtoAccount = function (ctx) {
 
   return {
     attivo, premium, avvio, collega: f => { fonte = f; }, datiSalvati, zonaCambiata,
-    meteoUtente, checkup, haComune: () => !!(st.profilo && st.profilo.lat != null),
+    meteoUtente, checkup, assistente, haComune: () => !!(st.profilo && st.profilo.lat != null),
     htmlOggi, bindOggi, viewAccount, bindAccount,
     utente: () => st.utente
   };

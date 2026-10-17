@@ -7,7 +7,8 @@ Copy-Item "$root\app\promemoria.js"   "$root\supabase\functions\_shared\promemor
 Push-Location $root
 $ErrorActionPreference = 'Continue'   # la CLI scrive avvisi su stderr: non sono errori
 try {
-  # Entrambe controllano da sole chi chiama (segreto del cron / sessione dell'utente).
-  npx.cmd --yes supabase@2.117.0 functions deploy promemoria --no-verify-jwt
-  npx.cmd --yes supabase@2.117.0 functions deploy checkup --no-verify-jwt
+  # Ogni funzione controlla da sola chi chiama (segreto del cron / sessione dell'utente).
+  foreach ($f in 'promemoria', 'checkup', 'assistente', 'elimina-account') {
+    npx.cmd --yes supabase@2.117.0 functions deploy $f --no-verify-jwt
+  }
 } finally { Pop-Location }

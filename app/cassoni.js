@@ -493,6 +493,11 @@ window.OrtoCassoni = function (ctx) {
     input.onchange = async () => {
       const file = input.files[0];
       if (!file) return;
+      if (!store.get('consensoFoto', false)) {
+        const ok = confirm('Per l\'analisi la foto, ridotta, viene inviata al servizio di intelligenza artificiale (Anthropic) insieme a coltura, tipo di aiuola e meteo della tua zona. Sul nostro server resta solo l\'esito.\n\nDettagli nell\'informativa privacy. Vuoi continuare?');
+        if (!ok) { input.value = ''; return; }
+        store.set('consensoFoto', true);
+      }
       const coltura = el.querySelector('#ckColtura').value;
       out.innerHTML = '<div class="ck-attesa"><span class="ck-spinner"></span>Analizzo la foto… di solito ci vogliono 20–40 secondi.</div>';
       input.disabled = true;
@@ -903,6 +908,34 @@ window.OrtoCassoni = function (ctx) {
   return {
     viewLista, bindLista, viewCassone, bindCassone,
     getDati: () => dati,
+    // Crea un'aiuola e la riempie con le colture scelte (primo avvio guidato). Restituisce l'id.
+    creaConColture(base, ids) {
+      const cs = Object.assign({ id: uid(), piani: {}, tipo: 'cassone', larghezza: 120, lunghezza: 240 }, base);
+      const { cols, rows } = dimensioni(cs);
+      const N = cols * rows;
+      // Piante alte a nord, poi le altre; in ordine evitando di affiancare colture incompatibili.
+      const restanti = ids.filter(id => BY_ID[id]).sort((a, b) => (ALTE.has(b) ? 1 : 0) - (ALTE.has(a) ? 1 : 0));
+      const ordine = [];
+      while (restanti.length) {
+        const prec = ordine[ordine.length - 1];
+        let i = prec ? restanti.findIndex(id => !nemiche(prec).has(id)) : 0;
+        if (i < 0) i = 0;
+        ordine.push(restanti.splice(i, 1)[0]);
+      }
+      const minimo = id => Math.max(1, Math.ceil(areaPianta(BY_ID[id]) / CELLA_AREA));
+      while (ordine.length && ordine.reduce((s, id) => s + minimo(id), 0) > N) ordine.pop();
+      if (ordine.length) {
+        const extra = N - ordine.reduce((s, id) => s + minimo(id), 0);
+        const quote = ordine.map(id => minimo(id) + Math.floor(extra / ordine.length));
+        const p = piano(cs, OGGI, true);
+        let cella = 0;
+        ordine.forEach((id, i) => { for (let n = 0; n < quote[i] && cella < N; n++, cella++) p.celle[Math.floor(cella / cols) + ',' + (cella % cols)] = id; });
+      }
+      dati.cassoni.push(cs);
+      salva();
+      return cs.id;
+    },
+    coltureDiStagione: () => C.filter(c => adatta(c, OGGI)),
     // Dati per la testata della pagina di un'aiuola.
     info(id) {
       const cs = trova(id);
