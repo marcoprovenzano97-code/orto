@@ -11,7 +11,7 @@
     { k: 'tra', nome: 'Trapianto',           breve: 'Trapianto',  css: 'var(--tra)', hint: 'Piantine dal semenzaio o acquistate.' },
     { k: 'rac', nome: 'Raccolta',            breve: 'Raccolta',   css: 'var(--rac)', hint: '' }
   ];
-  const PERENNI = new Set(['carciofo', 'fragola', 'asparago']);
+  const PERENNI = new Set(['carciofo', 'fragola', 'asparago', 'rosmarino', 'salvia', 'timo', 'menta', 'origano', 'erbacipollina']);
   const ROTAZIONE = ['alta', 'media', 'bassa', 'miglioratrice'];
 
   // ── Stato ──────────────────────────────────────────────
@@ -287,6 +287,12 @@
           <div class="fact"><div class="k">In aiuola</div><div class="v">${pianteMq(c)}</div></div>
           <div class="fact"><div class="k">Germinazione</div><div class="v">${esc(c.germ)}</div></div>
         </div>
+
+        ${c.varieta ? `<section class="card">
+          <div class="section-title"><h2>🏷️ Varietà</h2></div>
+          <div class="varieta">${c.varieta.map(v => `<div class="var-r"><strong>${esc(v.nome)}</strong><span class="muted small">${esc(v.ciclo)}</span><p class="small">${esc(v.note)}</p></div>`).join('')}</div>
+          <p class="muted small" style="margin:10px 0 0">Nel calendario dell'aiuola puoi indicare la varietà: le date di raccolta useranno i suoi tempi.</p>
+        </section>` : ''}
 
         <section class="card">
           <div class="section-title"><h2>📅 Calendario</h2></div>

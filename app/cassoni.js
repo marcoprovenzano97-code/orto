@@ -13,9 +13,13 @@ window.OrtoCassoni = function (ctx) {
   };
   const tipoDi = cs => TIPI[cs.tipo] ? cs.tipo : 'cassone';
 
-  const CELLA = 30;                     // lato della cella in cm
-  const CELLA_AREA = CELLA * CELLA;
+  const CELLA = 30;                     // lato predefinito della cella in cm
+  const CELLE = [30, 50, 100];          // per gli orti grandi: celle da 50 cm o da 1 m
+  const cellaDi = cs => CELLE.includes(cs && cs.cella) ? cs.cella : CELLA;
+  const areaCella = cs => cellaDi(cs) * cellaDi(cs);
+  const nomeCella = cs => cellaDi(cs) === 100 ? '1 m' : cellaDi(cs) + ' cm';
   const MAX_CELLE = 24;                 // per lato
+  const LATO_MAX = MAX_CELLE * 100;     // 24 m con celle da 1 m
   // Piante che crescono in altezza (o vanno tutorate) e fanno ombra a chi sta a nord.
   const ALTE = new Set(['pomodoro', 'mais', 'cetriolo', 'fagiolo', 'fava', 'carciofo', 'asparago']);
 
@@ -59,7 +63,7 @@ window.OrtoCassoni = function (ctx) {
     return cs.piani[k];
   }
   const coltureDi = p => p ? [...new Set([...Object.values(p.celle || {}), ...(p.extra || [])])].filter(id => BY_ID[id]) : [];
-  const dimensioni = cs => ({ cols: Math.min(MAX_CELLE, Math.max(1, Math.round(cs.larghezza / CELLA))), rows: Math.min(MAX_CELLE, Math.max(1, Math.round(cs.lunghezza / CELLA))) });
+  const dimensioni = cs => ({ cols: Math.min(MAX_CELLE, Math.max(1, Math.round(cs.larghezza / cellaDi(cs)))), rows: Math.min(MAX_CELLE, Math.max(1, Math.round(cs.lunghezza / cellaDi(cs)))) });
 
   // Stagioni precedenti a k (fino a 3 anni) con qualcosa coltivato, dalla più recente.
   function storiaPrima(cs, k) {
@@ -133,11 +137,11 @@ window.OrtoCassoni = function (ctx) {
       const [r, c] = rc.split(',').map(Number);
       if (r < rows && c < cols && BY_ID[id]) conteggio[id] = (conteggio[id] || 0) + 1;
     });
-    const riepilogo = Object.entries(conteggio).map(([id, n]) => ({ id, n, piante: n * CELLA_AREA / areaPianta(BY_ID[id]) }))
+    const riepilogo = Object.entries(conteggio).map(([id, n]) => ({ id, n, piante: n * areaCella(cs) / areaPianta(BY_ID[id]) }))
       .sort((a, b) => BY_ID[a.id].nome.localeCompare(BY_ID[b.id].nome));
     riepilogo.forEach(x => {
       if (x.piante < 1) {
-        const servono = Math.ceil(areaPianta(BY_ID[x.id]) / CELLA_AREA);
+        const servono = Math.ceil(areaPianta(BY_ID[x.id]) / areaCella(cs));
         avvisi.push({ t: 'warn', h: `${nome(x.id)} ha bisogno di circa ${servono} celle per pianta: ne hai ${x.n}.` });
       }
     });
@@ -257,7 +261,7 @@ window.OrtoCassoni = function (ctx) {
             <p style="margin-top:0"><strong>Crea la tua prima aiuola</strong> qui sotto (cassone rialzato, piena terra o vaso): dentro trovi</p>
             <ul class="clean">
               <li>i suggerimenti di rotazione basati su cosa c'era negli anni scorsi;</li>
-              <li><strong>✏️ Disegna l'aiuola</strong>: una griglia (celle da 30 cm) dove disponi le colture, con il controllo di consociazioni, spazi e ombra e la vista 3D.</li>
+              <li><strong>✏️ Disegna l'aiuola</strong>: una griglia (celle da 30 cm, o da 50 cm e 1 m per gli orti grandi) dove disponi le colture, con il controllo di consociazioni, spazi e ombra e la vista 3D.</li>
             </ul>
           </div>`}
         ${limitato() ? `
@@ -270,6 +274,8 @@ window.OrtoCassoni = function (ctx) {
           <summary><strong>+ Nuova aiuola</strong></summary>
           ${formCassone({ nome: `Aiuola ${dati.cassoni.length + 1}`, tipo: 'cassone', larghezza: 120, lunghezza: 240 }, 'Aggiungi')}
         </details>`}
+        ${htmlRisparmio()}
+        <section class="card" id="semiCard">${htmlSemi()}</section>
         <section class="card">
           <div class="section-title"><h2>💾 Backup</h2></div>
           <p class="muted small" style="margin:0 0 10px">${account.premium() ? 'Le aiuole sono sincronizzate nel tuo account. Puoi comunque esportarne una copia.' : 'I dati sono salvati solo su questo dispositivo. Esporta un backup ogni tanto, o per passarli su un altro telefono.'}</p>
@@ -285,21 +291,30 @@ window.OrtoCassoni = function (ctx) {
       <label>Nome<input name="nome" required maxlength="40" value="${esc(cs.nome)}"></label>
       <label>Tipo<select name="tipo">${Object.entries(TIPI).map(([k, t]) => `<option value="${k}" ${tipoDi(cs) === k ? 'selected' : ''}>${t.nome}</option>`).join('')}</select></label>
       <div class="two">
-        <label>Larghezza (cm)<input name="larghezza" type="number" min="30" max="${MAX_CELLE * CELLA}" step="10" required value="${cs.larghezza}"></label>
-        <label>Lunghezza (cm)<input name="lunghezza" type="number" min="30" max="${MAX_CELLE * CELLA}" step="10" required value="${cs.lunghezza}"></label>
+        <label>Larghezza (cm)<input name="larghezza" type="number" min="30" max="${LATO_MAX}" step="10" required value="${cs.larghezza}"></label>
+        <label>Lunghezza (cm)<input name="lunghezza" type="number" min="30" max="${LATO_MAX}" step="10" required value="${cs.lunghezza}"></label>
       </div>
+      <label>Celle della griglia<select name="cella">${CELLE.map(n => `<option value="${n}" ${cellaDi(cs) === n ? 'selected' : ''}>${n === 100 ? '1 m (orto grande)' : n === 50 ? '50 cm (orto medio)' : '30 cm (cassoni e orti piccoli)'}</option>`).join('')}</select></label>
       <label class="toggle"><input type="checkbox" name="perenne" ${cs.perenne ? 'checked' : ''}> Aiuola per colture perenni (asparago, carciofo, fragola): esclusa dalla rotazione</label>
       <button class="btn primary" type="submit">${azione}</button>
     </form>`;
   }
-  const leggiForm = f => ({
-    nome: f.nome.value.trim() || 'Aiuola',
-    tipo: TIPI[f.tipo.value] ? f.tipo.value : 'cassone',
-    larghezza: Math.max(30, Math.min(MAX_CELLE * CELLA, +f.larghezza.value || 120)),
-    lunghezza: Math.max(30, Math.min(MAX_CELLE * CELLA, +f.lunghezza.value || 240)),
-    perenne: f.perenne.checked
-  });
+  const leggiForm = f => {
+    const v = {
+      nome: f.nome.value.trim() || 'Aiuola',
+      tipo: TIPI[f.tipo.value] ? f.tipo.value : 'cassone',
+      larghezza: Math.max(30, Math.min(LATO_MAX, +f.larghezza.value || 120)),
+      lunghezza: Math.max(30, Math.min(LATO_MAX, +f.lunghezza.value || 240)),
+      cella: CELLE.includes(+f.cella.value) ? +f.cella.value : CELLA,
+      perenne: f.perenne.checked
+    };
+    // Se l'aiuola non sta nella griglia passo da solo alla cella più grande che serve.
+    const lato = Math.max(v.larghezza, v.lunghezza);
+    while (lato / v.cella > MAX_CELLE + 0.5 && v.cella < 100) v.cella = CELLE[CELLE.indexOf(v.cella) + 1];
+    return v;
+  };
   function bindLista(root) {
+    bindSemiRisparmio(root);
     const f = root.querySelector('form[data-form="cassone"]');
     if (f) f.onsubmit = e => {
       e.preventDefault();
@@ -323,7 +338,10 @@ window.OrtoCassoni = function (ctx) {
         const j = JSON.parse(t);
         if (!Array.isArray(j.cassoni)) throw new Error('formato');
         if (!confirm(`Importare ${j.cassoni.length} aiuole? I dati attuali su questo dispositivo verranno sostituiti.`)) return;
-        dati.cassoni = j.cassoni; salva(); rerender();
+        dati.cassoni = j.cassoni;
+        dati.semi = Array.isArray(j.semi) ? j.semi : [];
+        dati.prezzi = j.prezzi || {};
+        salva(); rerender();
       }).catch(() => alert('File non valido: serve un backup esportato da questa app.'));
     };
   }
@@ -340,10 +358,11 @@ window.OrtoCassoni = function (ctx) {
       <div class="stack">
         <div class="iso-hero">
           <div class="iso-stage">${isoSVG(cs, k)}</div>
-          <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'Pronta da progettare')(coltureDi(piano(cs, k)).length)} · ${cols}×${rows} celle da ${CELLA} cm${cs.perenne ? ' · perenni' : ''}</p>
+          <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'Pronta da progettare')(coltureDi(piano(cs, k)).length)} · ${cols}×${rows} celle da ${nomeCella(cs)}${cs.perenne ? ' · perenni' : ''}</p>
           <button class="btn primary hero-cta" id="vaiDisegna">✏️ Disegna l'aiuola</button>
         </div>
         <section class="card" id="calCard">${htmlCalendarioAiuola(cs, k)}</section>
+        <section class="card" id="trattCard">${htmlTrattamenti(cs)}</section>
         ${account.attivo ? `
         <section class="card" id="irrCard">${htmlIrrigazione(cs, null)}</section>
         <section class="card" id="ckCard">${htmlCheckup(cs)}</section>` : ''}
@@ -407,6 +426,7 @@ window.OrtoCassoni = function (ctx) {
     return `<form class="cal-form" data-c="${c.id}">
       <input type="date" name="data" required value="${imp ? imp.data : oggiISO()}" max="${window.OrtoPromemoria.piuGiorni(oggiISO(), 60)}">
       <select name="modo"><option value="trapianto" ${modo === 'trapianto' ? 'selected' : ''}>trapianto</option><option value="semina" ${modo === 'semina' ? 'selected' : ''}>semina</option></select>
+      ${c.varieta ? `<select name="varieta"><option value="">varietà generica</option>${c.varieta.map(v => `<option value="${v.id}" ${imp && imp.varieta === v.id ? 'selected' : ''}>${esc(v.nome)}</option>`).join('')}</select>` : ''}
       <button class="btn primary" type="submit">Salva</button>
     </form>`;
   }
@@ -417,7 +437,7 @@ window.OrtoCassoni = function (ctx) {
     const p = piano(cs, k), tp = tappeDi(cs, k), oggi = oggiISO();
     const righe = ids.map(id => {
       const c = BY_ID[id], imp = p.impianti && p.impianti[id], t = tp[id];
-      const testa = `<div class="cal-r-testa"><span class="em">${c.emoji}</span><strong>${esc(c.nome)}</strong>`;
+      const testa = `<div class="cal-r-testa"><span class="em">${c.emoji}</span><strong>${esc(c.nome)}</strong>${t && t.varieta ? ` <span class="muted small">${esc(t.varieta.nome)}</span>` : ''}`;
       if (!imp) {
         return `<div class="cal-r">${testa}</div><p class="muted small" style="margin:4px 0 6px">Quando l'hai piantata?</p>${formImpianto(c, null)}</div>`;
       }
@@ -435,6 +455,8 @@ window.OrtoCassoni = function (ctx) {
         } else {
           info = '🔚 <strong>Ciclo concluso</strong>: libera il posto e guarda cosa piantare dopo.';
         }
+        const car = t.stato !== 'finito' && window.OrtoPromemoria.carenzaPer(cs, id, new Date());
+        if (car) info += `<br>🧴 <strong>Non raccogliere fino al ${dataBreve(car.fino)}</strong> (trattamento: ${esc(car.nome)})`;
         if (t.risemina) {
           info += t.risemina <= oggi
             ? `<br>🌱 È il momento di una nuova semina scaglionata. <button class="link" data-riseminato="${id}">Ho riseminato oggi</button>`
@@ -463,11 +485,16 @@ window.OrtoCassoni = function (ctx) {
       const f = e.target.closest('.cal-form');
       if (!f) return;
       e.preventDefault();
-      imposta(f.dataset.c, { data: f.data.value, modo: f.modo.value });
+      const v = { data: f.data.value, modo: f.modo.value };
+      if (f.varieta && f.varieta.value) v.varieta = f.varieta.value;
+      imposta(f.dataset.c, v);
     });
     el.addEventListener('click', e => {
       const r = e.target.closest('[data-riseminato]'), t = e.target.closest('[data-togli-data]');
-      if (r) imposta(r.dataset.riseminato, { data: oggiISO(), modo: 'semina' });
+      if (r) {
+        const p = piano(cs, k), prima = p && p.impianti && p.impianti[r.dataset.riseminato];
+        imposta(r.dataset.riseminato, Object.assign({ data: oggiISO(), modo: 'semina' }, prima && prima.varieta ? { varieta: prima.varieta } : {}));
+      }
       if (t) imposta(t.dataset.togliData, null);
     });
   }
@@ -621,6 +648,10 @@ window.OrtoCassoni = function (ctx) {
     };
   }
   const fmtKg = n => (Math.round(n * 100) / 100).toLocaleString('it-IT') + ' kg';
+  const fmtEuro = n => n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: n >= 100 ? 0 : 2 });
+  // Prezzo al kg usato per il risparmio: quello scelto dall'utente, altrimenti la media indicativa della scheda.
+  const prezzoDi = id => (dati.prezzi && dati.prezzi[id] > 0) ? dati.prezzi[id] : (BY_ID[id] ? BY_ID[id].prezzo : 0);
+  const valore = r => r.kg * prezzoDi(r.coltura);
   function htmlRaccolti(cs) {
     const titolo = '<div class="section-title"><h2>🧺 Diario dei raccolti</h2></div>';
     if (account.attivo && !account.premium()) {
@@ -643,8 +674,176 @@ window.OrtoCassoni = function (ctx) {
         </div>
         <button class="btn primary" type="submit">+ Registra raccolto</button>
       </form>
-      ${Object.keys(tot).length ? `<p class="muted small" style="margin:14px 0 6px">Totale ${anno}</p><div class="riep" style="margin:0">${Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([id, kg]) => `<span class="pill">${nomeC(id)} · ${fmtKg(kg)}</span>`).join('')}</div>` : ''}
+      ${Object.keys(tot).length ? `<p class="small" style="margin:14px 0 6px"><strong>Totale ${anno}: ${fmtKg(Object.values(tot).reduce((s, x) => s + x, 0))}</strong> · valore al mercato circa <strong>${fmtEuro(Object.entries(tot).reduce((s, [id, kg]) => s + kg * prezzoDi(id), 0))}</strong></p><div class="riep" style="margin:0">${Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([id, kg]) => `<span class="pill">${nomeC(id)} · ${fmtKg(kg)} · ${fmtEuro(kg * prezzoDi(id))}</span>`).join('')}</div>` : ''}
       ${lista.length ? `<ul class="racc-lista">${lista.slice(0, 12).map(r => `<li><span class="muted">${new Date(r.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</span><span>${nomeC(r.coltura)}</span><strong>${fmtKg(r.kg)}</strong><button class="link danger" data-togli="${r.id}" aria-label="Elimina raccolto">✕</button></li>`).join('')}</ul>` : '<p class="empty" style="margin:12px 0 0">Ancora nessun raccolto registrato.</p>'}`;
+  }
+
+  // ── Registro trattamenti ────────────────────────────────
+  // Tempi di carenza indicativi per l'orto (i più prudenti tra quelli in etichetta): fa sempre fede l'etichetta del prodotto.
+  const PRODOTTI = [
+    { id: 'rame', nome: 'Rame (poltiglia bordolese, ossicloruro)', carenza: 20 },
+    { id: 'zolfo', nome: 'Zolfo', carenza: 5 },
+    { id: 'piretro', nome: 'Piretro naturale', carenza: 3 },
+    { id: 'neem', nome: 'Olio di neem (azadiractina)', carenza: 3 },
+    { id: 'bt', nome: 'Bacillus thuringiensis', carenza: 3 },
+    { id: 'spinosad', nome: 'Spinosad', carenza: 7 },
+    { id: 'sapone', nome: 'Sapone molle potassico', carenza: 3 },
+    { id: 'macerato', nome: 'Macerato (ortica, equiseto…)', carenza: 0 },
+    { id: 'altro', nome: 'Altro prodotto', carenza: 7 }
+  ];
+  const giornoMese = iso => new Date(iso + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  function htmlTrattamenti(cs) {
+    const P = window.OrtoPromemoria, oggi = new Date();
+    const titolo = '<div class="section-title"><h2>🧴 Trattamenti</h2></div>';
+    const inCampo = coltureDi(piano(cs, OGGI));
+    const lista = (cs.trattamenti || []).slice().sort((a, b) => b.data.localeCompare(a.data));
+    const attivi = P.carenze(cs, oggi).filter(t => t.attivo);
+    const nomi = t => t.colture && t.colture.length ? t.colture.map(id => BY_ID[id] ? BY_ID[id].emoji + ' ' + esc(BY_ID[id].nome) : '').join(', ') : 'tutta l\'aiuola';
+    return titolo + `
+      ${attivi.length ? `<ul class="avvisi" style="margin:0 0 12px">${attivi.map(t => `<li class="bad"><span></span><span><strong>Non raccogliere fino al ${giornoMese(t.fino)}</strong><br>${nomi(t)} · ${esc(t.nome)}</span></li>`).join('')}</ul>` : ''}
+      <details ${lista.length ? '' : 'open'}><summary><strong>+ Registra un trattamento</strong></summary>
+      <form class="form" data-form="trattamento" style="margin-top:10px">
+        <div class="two">
+          <label>Prodotto<select name="prodotto">${PRODOTTI.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select></label>
+          <label>Data<input name="data" type="date" required value="${oggiISO()}" max="${oggiISO()}"></label>
+        </div>
+        <label class="tr-nome" hidden>Nome del prodotto<input name="nome" maxlength="60" placeholder="es. il nome scritto sulla confezione"></label>
+        <label>Tempo di carenza (giorni)<input name="carenza" type="number" min="0" max="120" step="1" required value="${PRODOTTI[0].carenza}" inputmode="numeric"></label>
+        <p class="muted small" style="margin:-4px 0 0">Valore indicativo: <strong>verifica l'etichetta</strong>, che indica i giorni da rispettare per ogni coltura.</p>
+        ${inCampo.length ? `<fieldset class="tr-colture"><legend class="small">Su quali colture? (nessuna = tutta l'aiuola)</legend>${inCampo.map(id => `<label class="toggle"><input type="checkbox" name="colture" value="${id}"> ${BY_ID[id].emoji} ${esc(BY_ID[id].nome)}</label>`).join('')}</fieldset>` : ''}
+        <button class="btn primary" type="submit">Salva trattamento</button>
+      </form></details>
+      ${lista.length ? `<ul class="racc-lista">${lista.slice(0, 10).map(t => {
+        const fino = P.piuGiorni(t.data, t.carenza || 0);
+        return `<li><span class="muted">${giornoMese(t.data)}</span><span>${esc(t.nome)}<span class="muted small" style="display:block">${nomi(t)} · ${t.carenza ? `carenza ${t.carenza} gg, fino al ${giornoMese(fino)}` : 'nessuna carenza'}</span></span><span></span><button class="link danger" data-togli-tr="${t.id}" aria-label="Elimina trattamento">✕</button></li>`;
+      }).join('')}</ul>` : ''}`;
+  }
+  function bindTrattamenti(root, cs) {
+    const el = root.querySelector('#trattCard');
+    if (!el) return;
+    const ridisegna = () => { el.innerHTML = htmlTrattamenti(cs); root.querySelector('#calCard').innerHTML = htmlCalendarioAiuola(cs, state.stagione); };
+    el.addEventListener('change', e => {
+      const f = e.target.closest('form[data-form="trattamento"]');
+      if (!f || e.target.name !== 'prodotto') return;
+      const p = PRODOTTI.find(x => x.id === f.prodotto.value);
+      f.carenza.value = p.carenza;
+      f.querySelector('.tr-nome').hidden = p.id !== 'altro';
+    });
+    el.addEventListener('submit', e => {
+      const f = e.target.closest('form[data-form="trattamento"]');
+      if (!f) return;
+      e.preventDefault();
+      const p = PRODOTTI.find(x => x.id === f.prodotto.value) || PRODOTTI[PRODOTTI.length - 1];
+      cs.trattamenti = cs.trattamenti || [];
+      cs.trattamenti.push({
+        id: uid(), data: f.data.value, prodotto: p.id,
+        nome: p.id === 'altro' ? (f.nome.value.trim() || p.nome) : p.nome,
+        carenza: Math.max(0, Math.min(120, Math.round(+f.carenza.value || 0))),
+        colture: [...f.querySelectorAll('input[name="colture"]:checked')].map(x => x.value)
+      });
+      cs.trattamenti = cs.trattamenti.slice(-50);
+      salva(); ridisegna();
+    });
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-togli-tr]');
+      if (!b || !confirm('Eliminare questo trattamento dal registro?')) return;
+      cs.trattamenti = (cs.trattamenti || []).filter(t => t.id !== b.dataset.togliTr);
+      salva(); ridisegna();
+    });
+  }
+
+  // ── Scorta di semi e risparmio (pagina "Il mio orto") ──
+  function htmlSemi() {
+    const P = window.OrtoPromemoria, oggi = new Date(), m = oggi.getMonth() + 1, anno = oggi.getFullYear();
+    const semi = (dati.semi || []).filter(s => BY_ID[s.coltura]).slice().sort((a, b) => BY_ID[a.coltura].nome.localeCompare(BY_ID[b.coltura].nome));
+    const oraSi = c => ['sem', 'dir'].some(k => inMese(c, state.zona, k, m));
+    const opzioni = C.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${c.emoji} ${esc(c.nome)}</option>`).join('');
+    const scad = s => s.scadenza ? new Date(s.scadenza + '-15T12:00').toLocaleDateString('it-IT', { month: 'short', year: 'numeric' }) : '';
+    return `<div class="section-title"><h2>🌰 I miei semi</h2></div>
+      ${semi.length ? `<ul class="racc-lista semi-lista">${semi.map(s => {
+        const c = BY_ID[s.coltura], scaduto = P.semeScaduto(s, oggi);
+        const stato = scaduto ? '<span class="pill pill-bad">scaduti</span>'
+          : oraSi(c) ? '<span class="pill now-badge">da seminare ora</span>'
+          : s.scadenza && s.scadenza.startsWith(String(anno)) ? '<span class="pill">scadono quest\'anno</span>' : '';
+        return `<li><span>${c.emoji}</span><span><strong>${esc(c.nome)}</strong>${s.nota ? ` · ${esc(s.nota)}` : ''}<span class="muted small" style="display:block">${s.scadenza ? `buoni fino a ${scad(s)}` : 'scadenza non indicata'}</span></span><span>${stato}</span><button class="link danger" data-togli-seme="${s.id}" aria-label="Togli dalla scorta">✕</button></li>`;
+      }).join('')}</ul>` : '<p class="muted small" style="margin:0 0 10px">Segna le bustine che hai in casa: ti ricordo quando è il momento di seminarle e quando stanno per scadere.</p>'}
+      <details ${semi.length ? '' : 'open'}><summary><strong>+ Aggiungi semi</strong></summary>
+      <form class="form" data-form="seme" style="margin-top:10px">
+        <div class="two">
+          <label>Coltura<select name="coltura">${opzioni}</select></label>
+          <label>Buoni fino a<input name="scadenza" type="month" value="${anno + (C[0].semiAnni || 3)}-12"></label>
+        </div>
+        <label>Varietà o note<input name="nota" maxlength="60" placeholder="es. San Marzano, bustina aperta"></label>
+        <p class="muted small semi-aiuto" style="margin:-4px 0 0"></p>
+        <button class="btn primary" type="submit">Aggiungi alla scorta</button>
+      </form></details>`;
+  }
+  function htmlRisparmio() {
+    if (account.attivo && !account.premium()) return '';
+    const anno = String(new Date().getFullYear()), tot = {};
+    dati.cassoni.forEach(cs => (cs.raccolti || []).filter(r => r.data.startsWith(anno) && BY_ID[r.coltura])
+      .forEach(r => { tot[r.coltura] = (tot[r.coltura] || 0) + r.kg; }));
+    const voci = Object.entries(tot).sort((a, b) => b[1] * prezzoDi(b[0]) - a[1] * prezzoDi(a[0]));
+    if (!voci.length) return '';
+    const kg = voci.reduce((s, [, x]) => s + x, 0), euro = voci.reduce((s, [id, x]) => s + x * prezzoDi(id), 0);
+    return `<section class="card" id="risparmioCard">
+      <div class="section-title"><h2>💶 Il tuo raccolto ${anno}</h2></div>
+      <p class="risp-tot"><strong>${fmtEuro(euro)}</strong><span class="muted small">risparmiati, circa · ${fmtKg(kg)} raccolti</span></p>
+      <div class="riep" style="margin:0">${voci.slice(0, 8).map(([id, x]) => `<span class="pill">${BY_ID[id].emoji} ${esc(BY_ID[id].nome)} · ${fmtEuro(x * prezzoDi(id))}</span>`).join('')}</div>
+      <details style="margin-top:12px"><summary class="small">Prezzi usati (€/kg): modificali con quelli della tua zona</summary>
+        <form class="prezzi-form" data-form="prezzi">${voci.map(([id]) => `<label>${BY_ID[id].emoji} ${esc(BY_ID[id].nome)}<input name="${id}" type="number" min="0" step="0.1" inputmode="decimal" value="${prezzoDi(id)}"></label>`).join('')}
+        <button class="btn" type="submit">Salva prezzi</button></form>
+      </details>
+      <p class="muted small" style="margin:10px 0 0">Stima con prezzi medi al dettaglio: il valore reale dipende da qualità, varietà e stagione.</p>
+    </section>`;
+  }
+  const MESI_B = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  const mesiNomi = spec => spec.split(',').map(p => p.split('-').map(n => MESI_B[+n - 1]).join('–')).join(', ');
+  function bindSemiRisparmio(root) {
+    const el = root.querySelector('#semiCard');
+    if (el) {
+      const aiuto = f => {
+        const c = BY_ID[f.coltura.value], z = c.cal[state.zona];
+        const quando = [z.sem && 'in semenzaio ' + mesiNomi(z.sem), z.dir && 'in piena terra ' + mesiNomi(z.dir)].filter(Boolean).join(', ');
+        f.querySelector('.semi-aiuto').textContent = (c.semiAnni ? `I semi di ${c.nome.toLowerCase()} durano circa ${c.semiAnni} ${c.semiAnni === 1 ? 'anno' : 'anni'}: controlla la data sulla bustina. ` : '') + (quando ? `Si semina ${quando}.` : 'Di solito si parte da piantina, talea o bulbo.');
+        if (!f.scadenza.dataset.toccato) f.scadenza.value = `${new Date().getFullYear() + (c.semiAnni || 2)}-12`;
+      };
+      const ridisegna = () => { el.innerHTML = htmlSemi(); aiuto(el.querySelector('form[data-form="seme"]')); };
+      aiuto(el.querySelector('form[data-form="seme"]'));
+      el.addEventListener('change', e => {
+        const ff = e.target.closest('form[data-form="seme"]');
+        if (!ff) return;
+        if (e.target.name === 'scadenza') ff.scadenza.dataset.toccato = '1';
+        if (e.target.name === 'coltura') aiuto(ff);
+      });
+      el.addEventListener('submit', e => {
+        const ff = e.target.closest('form[data-form="seme"]');
+        if (!ff) return;
+        e.preventDefault();
+        dati.semi = dati.semi || [];
+        dati.semi.push({ id: uid(), coltura: ff.coltura.value, nota: ff.nota.value.trim(), scadenza: ff.scadenza.value || '' });
+        salva(); ridisegna();
+      });
+      el.addEventListener('click', e => {
+        const b = e.target.closest('[data-togli-seme]');
+        if (!b) return;
+        dati.semi = (dati.semi || []).filter(s => s.id !== b.dataset.togliSeme);
+        salva(); ridisegna();
+      });
+    }
+    const rc = root.querySelector('#risparmioCard');
+    if (rc) rc.addEventListener('submit', e => {
+      const rp = e.target.closest('form[data-form="prezzi"]');
+      if (!rp) return;
+      e.preventDefault();
+      dati.prezzi = dati.prezzi || {};
+      rp.querySelectorAll('input').forEach(i => {
+        const v = parseFloat(String(i.value).replace(',', '.'));
+        if (v > 0 && BY_ID[i.name] && v !== BY_ID[i.name].prezzo) dati.prezzi[i.name] = v; else delete dati.prezzi[i.name];
+      });
+      salva();
+      rc.innerHTML = htmlRisparmio().replace(/^<section[^>]*>|<\/section>$/g, '');
+    });
   }
 
   function htmlRotazione(cs, k) {
@@ -692,7 +891,7 @@ window.OrtoCassoni = function (ctx) {
       .map(c => ({ c, v: valuta(c, cs, k, fr, rot) }))
       .sort((a, b) => ordine[a.v.cat] - ordine[b.v.cat] || a.c.nome.localeCompare(b.c.nome));
     const sel = ui.pennello, cam = camminoDi(sel);
-    const testo = !sel ? 'Scegli una coltura o una struttura, poi tocca le celle dell’aiuola (ogni cella = 30×30 cm).'
+    const testo = !sel ? 'Scegli una coltura o una struttura, poi tocca le celle dell’aiuola (ogni cella = ' + (cellaDi(cs) === 100 ? '1 × 1 m' : cellaDi(cs) + '×' + cellaDi(cs) + ' cm') + ').'
       : SUGGERIMENTO[sel] || (cam ? `Tocca o trascina per fare un camminamento in <strong>${CAMMINI[cam].nome.toLowerCase()}</strong>.` : `Tocca o trascina sulle celle per piantare <strong>${nome(sel)}</strong>.`);
     const btn = (p, label, cls = '', title = '') => `<button class="pbtn ${cls}" data-p="${p}" aria-pressed="${sel === p}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
     return `
@@ -867,13 +1066,30 @@ window.OrtoCassoni = function (ctx) {
     aggiornaIrrigazione(root, cs);
     bindCheckup(root, cs);
     bindCalendarioAiuola(root, cs, k);
+    bindTrattamenti(root, cs);
 
     // Modifica / elimina
     const f = root.querySelector('form[data-form="cassone"]');
     f.onsubmit = e => {
       e.preventDefault();
+      const prima = cellaDi(cs);
       Object.assign(cs, leggiForm(f));
       const { cols, rows } = dimensioni(cs);
+      // Cambiata la dimensione della cella: ricampiono il disegno sulla nuova griglia.
+      const ora = cellaDi(cs);
+      if (ora !== prima) {
+        const campiona = m => {
+          if (!m) return m;
+          const n = {};
+          for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+            const v = m[Math.floor(r * ora / prima) + ',' + Math.floor(c * ora / prima)];
+            if (v) n[r + ',' + c] = v;
+          }
+          return n;
+        };
+        Object.values(cs.piani || {}).forEach(p => { p.celle = campiona(p.celle) || {}; if (p.pacciame) p.pacciame = campiona(p.pacciame); });
+        if (cs.divisori) cs.divisori = [...new Set(cs.divisori.map(r => Math.round(r * prima / ora)))];
+      }
       const fuori = rc => { const [r, c] = rc.split(',').map(Number); return r >= rows || c >= cols; };
       Object.values(cs.piani || {}).forEach(p => {
         Object.keys(p.celle || {}).forEach(rc => { if (fuori(rc)) delete p.celle[rc]; });
@@ -1014,6 +1230,8 @@ window.OrtoCassoni = function (ctx) {
     // Crea un'aiuola e la riempie con le colture scelte (primo avvio guidato). Restituisce l'id.
     creaConColture(base, ids) {
       const cs = Object.assign({ id: uid(), piani: {}, tipo: 'cassone', larghezza: 120, lunghezza: 240 }, base);
+      const lato = Math.max(cs.larghezza, cs.lunghezza);
+      if (lato / CELLA > MAX_CELLE + 0.5) cs.cella = lato / 50 > MAX_CELLE + 0.5 ? 100 : 50;
       const { cols, rows } = dimensioni(cs);
       const N = cols * rows;
       // Piante alte a nord, poi le altre; in ordine evitando di affiancare colture incompatibili.
@@ -1025,7 +1243,7 @@ window.OrtoCassoni = function (ctx) {
         if (i < 0) i = 0;
         ordine.push(restanti.splice(i, 1)[0]);
       }
-      const minimo = id => Math.max(1, Math.ceil(areaPianta(BY_ID[id]) / CELLA_AREA));
+      const minimo = id => Math.max(1, Math.ceil(areaPianta(BY_ID[id]) / areaCella(cs)));
       while (ordine.length && ordine.reduce((s, id) => s + minimo(id), 0) > N) ordine.pop();
       if (ordine.length) {
         const extra = N - ordine.reduce((s, id) => s + minimo(id), 0);
@@ -1048,6 +1266,8 @@ window.OrtoCassoni = function (ctx) {
     // Sostituisce i dati locali con quelli arrivati dal cloud (senza rimandarli indietro).
     setDati(n) {
       dati.cassoni = Array.isArray(n && n.cassoni) ? n.cassoni : [];
+      dati.semi = Array.isArray(n && n.semi) ? n.semi : [];
+      dati.prezzi = (n && n.prezzi) || {};
       dati.aggiornato = (n && n.aggiornato) || new Date().toISOString();
       store.set('cassoni', dati);
     }

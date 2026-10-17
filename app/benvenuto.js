@@ -33,8 +33,8 @@ window.OrtoBenvenuto = function (ctx) {
         <div class="bv-scelte tipi">${TIPI.map(t => `
           <button class="bv-opz ${st.tipo === t.k ? 'on' : ''}" data-tipo="${t.k}"><span class="bv-em">${t.em}</span><strong>${t.nome}</strong></button>`).join('')}</div>
         <div class="form" style="margin-top:12px"><div class="two">
-          <label>Larghezza (cm)<input id="bvL" type="number" min="30" max="720" step="10" value="${st.larghezza}"></label>
-          <label>Lunghezza (cm)<input id="bvH" type="number" min="30" max="720" step="10" value="${st.lunghezza}"></label>
+          <label>Larghezza (cm)<input id="bvL" type="number" min="30" max="2400" step="10" value="${st.larghezza}"></label>
+          <label>Lunghezza (cm)<input id="bvH" type="number" min="30" max="2400" step="10" value="${st.lunghezza}"></label>
         </div></div>`;
     } else {
       const lista = cassoni.coltureDiStagione().sort((a, b) => a.nome.localeCompare(b.nome));
@@ -63,8 +63,8 @@ window.OrtoBenvenuto = function (ctx) {
   }
   function leggiMisure() {
     const l = el.querySelector('#bvL'), h = el.querySelector('#bvH');
-    if (l) st.larghezza = Math.max(30, Math.min(720, +l.value || st.larghezza));
-    if (h) st.lunghezza = Math.max(30, Math.min(720, +h.value || st.lunghezza));
+    if (l) st.larghezza = Math.max(30, Math.min(2400, +l.value || st.larghezza));
+    if (h) st.lunghezza = Math.max(30, Math.min(2400, +h.value || st.lunghezza));
   }
   function collega() {
     el.querySelector('#bvSalta').onclick = () => chiudi(false);

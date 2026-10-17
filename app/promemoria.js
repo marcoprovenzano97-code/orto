@@ -66,7 +66,7 @@
   };
   // Vasi e cassoni rialzati perdono più acqua (bordi esposti, drenaggio rapido).
   const FATTORE_TIPO = { terra: 1.0, cassone: 1.1, vaso: 1.2 };
-  const CELLA_M2 = 0.09;          // cella da 30×30 cm
+  const CELLA_M2 = 0.09;          // cella da 30×30 cm (predefinita; cs.cella può essere 50 o 100)
   const PIOGGIA_UTILE = 0.8;      // quota di pioggia che resta davvero nel terreno
   const SOGLIA_MM = 2;            // sotto questa carenza non conviene annaffiare
 
@@ -97,7 +97,7 @@
       Object.values(p.celle || {}).forEach(id => { if (byId[id]) peso[id] = (peso[id] || 0) + 1; });
     });
     let celle = Object.values(peso).reduce((s, n) => s + n, 0);
-    let area = celle * CELLA_M2;
+    let area = celle * ([50, 100].includes(cs.cella) ? cs.cella * cs.cella / 10000 : CELLA_M2);
     if (!celle) {
       chiaviInCampo(oggi).forEach(k => {
         const p = cs.piani && cs.piani[k];
@@ -151,10 +151,13 @@
   const giorniTra = (a, b) => Math.round((daISO(b) - daISO(a)) / GIORNO);
 
   // "70–90 giorni dal trapianto" → { min: 70, max: 90, rif: 'trapianto' }; null per le perenni.
-  function ciclo(c) {
-    const m = /(\d+)\s*[–-]\s*(\d+)\s*giorni/.exec(c.ciclo || '');
+  // Se è indicata una varietà (imp.varieta) uso i suoi tempi.
+  function ciclo(c, varieta) {
+    const v = varieta && c.varieta && c.varieta.find(x => x.id === varieta);
+    const testo = (v && v.ciclo) || c.ciclo || '';
+    const m = /(\d+)\s*[–-]\s*(\d+)\s*giorni/.exec(testo);
     if (!m) return null;
-    return { min: +m[1], max: +m[2], rif: /trapianto/.test(c.ciclo) ? 'trapianto' : /semina/.test(c.ciclo) ? 'semina' : 'impianto' };
+    return { min: +m[1], max: +m[2], rif: /trapianto/.test(testo) ? 'trapianto' : /semina/.test(testo) ? 'semina' : 'impianto' };
   }
 
   /** Tappe delle colture di un'aiuola che hanno una data d'impianto (stagioni ancora in campo). */
@@ -168,8 +171,9 @@
         const c = byId[id];
         if (!c || !imp || !imp.data || !presenti.has(id) || viste.has(id)) return;
         viste.add(id);
-        const cy = ciclo(c), giorni = giorniTra(imp.data, iso);
-        const t = { aiuola: cs, coltura: c, stagione: k, data: imp.data, modo: imp.modo || 'trapianto', giorni };
+        const cy = ciclo(c, imp.varieta), giorni = giorniTra(imp.data, iso);
+        const t = { aiuola: cs, coltura: c, stagione: k, data: imp.data, modo: imp.modo || 'trapianto', giorni,
+          varieta: imp.varieta && c.varieta && c.varieta.find(x => x.id === imp.varieta) };
         if (!cy) { out.push(Object.assign(t, { stato: 'perenne' })); return; }
         // Il ciclo della scheda parte dalla semina o dal trapianto: correggo se l'impianto è avvenuto nell'altro modo.
         const corr = cy.rif === 'semina' && t.modo === 'trapianto' ? -SEMENZAIO_GG : cy.rif === 'trapianto' && t.modo === 'semina' ? SEMENZAIO_GG : 0;
@@ -185,6 +189,26 @@
     });
     return out;
   }
+
+  /**
+   * Trattamenti di un'aiuola con il loro tempo di carenza (cs.trattamenti = [{id, data, prodotto, nome, carenza, colture: [id]}]).
+   * colture vuoto = tutta l'aiuola. Restituisce quelli ancora attivi (o finiti da ≤ giorniDopo giorni) con la data "fino".
+   */
+  function carenze(cs, oggi, giorniDopo = 0) {
+    const iso = isoGiorno(oggi);
+    return (cs.trattamenti || []).filter(t => t && t.data && t.carenza > 0)
+      .map(t => Object.assign({}, t, { fino: piuGiorni(t.data, t.carenza) }))
+      .filter(t => t.data <= iso && iso <= piuGiorni(t.fino, giorniDopo))
+      .map(t => Object.assign(t, { attivo: iso < t.fino }));
+  }
+  // Carenza attiva per una coltura dell'aiuola: la più lunga, oppure null.
+  function carenzaPer(cs, id, oggi) {
+    return carenze(cs, oggi).filter(t => t.attivo && (!t.colture || !t.colture.length || t.colture.includes(id)))
+      .sort((a, b) => b.fino.localeCompare(a.fino))[0] || null;
+  }
+
+  // Semi in scorta (dati.semi = [{id, coltura, nota, scadenza: 'AAAA-MM'}]): scaduti se il mese è passato.
+  const semeScaduto = (s, oggi) => !!s.scadenza && s.scadenza < isoGiorno(oggi).slice(0, 7);
 
   const annaffiatoi = l => {
     if (l <= 3) return '';
@@ -277,6 +301,33 @@
       }
     }));
 
+    // Trattamenti: avviso finché vale il tempo di carenza, poi una notifica quando si può tornare a raccogliere.
+    aiuole.forEach(cs => carenze(cs, oggi, 1).forEach(t => {
+      const cols = (t.colture && t.colture.length ? t.colture : []).map(id => byId[id]).filter(Boolean);
+      const cosa = cols.length ? elenco(cols) : 'tutta l’aiuola';
+      if (t.attivo) {
+        out.push({ id: `carenza-${cs.id}-${t.id}`, tipo: 'lavori', livello: 'alta', titolo: `🧴 Non raccogliere fino al ${t.fino.split('-').reverse().slice(0, 2).join('/')}`,
+          testo: `${cs.nome}, ${cosa}: trattamento con ${t.nome || 'un prodotto'} del ${t.data.split('-').reverse().slice(0, 2).join('/')}. Rispetta sempre il tempo di carenza scritto in etichetta.`, link: '#/cassone/' + cs.id });
+      } else {
+        out.push({ id: `carenzafine-${cs.id}-${t.id}`, tipo: 'evento', livello: 'info', titolo: `✅ Si può tornare a raccogliere (${cs.nome})`,
+          testo: `È finito il tempo di carenza del trattamento con ${t.nome || 'un prodotto'} su ${cosa}.`, link: '#/cassone/' + cs.id });
+      }
+    }));
+
+    // Scorta di semi: cosa seminare questo mese tra quelli che hai già (una notifica al mese).
+    const semi = ((dati && dati.semi) || []).filter(s => byId[s.coltura]);
+    const buoni = semi.filter(s => !semeScaduto(s, oggi));
+    const daSeminare = uniche(buoni.map(s => ({ c: byId[s.coltura] })).filter(x => ['sem', 'dir'].some(k => mesi(x.c.cal[zona][k]).has(m))));
+    if (daSeminare.length) {
+      out.push({ id: `semiscorta-${iso.slice(0, 7)}`, tipo: 'evento', livello: 'info', titolo: '🌰 È il momento dei tuoi semi',
+        testo: `Hai in scorta semi da seminare a ${MESI[m - 1]}: ${elenco(daSeminare)}.`, link: '#/cassoni' });
+    }
+    const scaduti = semi.filter(s => semeScaduto(s, oggi));
+    if (scaduti.length) {
+      out.push({ id: `semiscaduti-${iso.slice(0, 7)}`, tipo: 'lavori', livello: 'info', titolo: '🌰 Semi scaduti in scorta',
+        testo: `${elenco(uniche(scaduti.map(s => ({ c: byId[s.coltura] }))))}: possono germinare meno. Fai una prova su carta umida o semina più fitto.`, link: '#/cassoni' });
+    }
+
     const daRaccogliere = uniche(campo.filter(x => mesi(x.c.cal[zona].rac).has(m)));
     if (daRaccogliere.length) {
       out.push({ id: `raccolta-${iso.slice(0, 7)}`, tipo: 'lavori', livello: 'info', titolo: '🧺 Periodo di raccolta', testo: elenco(daRaccogliere) + '.' });
@@ -293,5 +344,5 @@
     return out;
   }
 
-  root.OrtoPromemoria = { calcola, stagioneDa, isoGiorno, irrigazione, annaffiatoi, tappe, ciclo, piuGiorni, giorniTra };
+  root.OrtoPromemoria = { calcola, stagioneDa, isoGiorno, irrigazione, annaffiatoi, tappe, ciclo, piuGiorni, giorniTra, carenze, carenzaPer, semeScaduto };
 })(typeof window !== 'undefined' ? window : globalThis);

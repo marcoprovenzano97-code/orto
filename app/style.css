@@ -543,3 +543,23 @@ body.bv-aperto .chat-fab { display: none; }
 .chat-box .chat-invio textarea { min-height: 44px; }
 .chat-box .chat-invio .btn { width: 44px; height: 44px; }
 .chat-box .chat-piede { display: block; padding: 0 12px calc(10px + env(safe-area-inset-bottom)); font-size: .75rem; }
+
+/* Varietà nella scheda coltura */
+.varieta { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.var-r { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface); }
+.var-r strong { display: block; }
+.var-r p { margin: 4px 0 0; }
+
+/* Trattamenti, semi, risparmio */
+.pill-bad { background: var(--red-soft); color: var(--red); font-weight: 600; }
+.semi-lista li { grid-template-columns: 28px 1fr auto 24px; }
+.semi-lista li > span:first-child { font-size: 1.2rem; }
+.tr-colture { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.tr-colture legend { padding: 0 4px; color: var(--muted); }
+.tr-colture .toggle { margin: 0; }
+.risp-tot { margin: 0 0 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.risp-tot strong { font-family: Fraunces, serif; font-size: 2rem; color: var(--green); line-height: 1; }
+.prezzi-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; align-items: end; }
+.prezzi-form label { display: flex; flex-direction: column; gap: 3px; font-size: .88rem; }
+.prezzi-form input { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; }
+.form label[hidden] { display: none; }

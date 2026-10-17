@@ -41,6 +41,14 @@ window.FOTO_COLTURE = {
   fragola: '1566804770468-867f6158bda5',
   mais: '1565522734001-f00e62ec8424',
   valerianella: '1723110569402-6eec857daa4d',
+  rosmarino: '1582745741856-1a5d68158ba3',
+  salvia: '1734367607096-9005870e78b7',
+  timo: '1606072104299-cdaab62c0a07',
+  menta: '1588908933351-eeb8cd4c4521',
+  origano: '1688633767797-455f59c98272',
+  erbacipollina: '1780314726531-52ff398d4b4c',
+  scalogno: '1639176267141-2ff48087e1be',
+  rapa: '1741518009697-9ab172fbe15c',
   asparago: '1519590350802-eb212e2ea536'
 };
 window.FOTO_PAGINE = {

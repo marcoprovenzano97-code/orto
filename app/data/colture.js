@@ -871,5 +871,237 @@ window.COLTURE = [
     nemiche: ['aglio', 'cipolla'],
     avv: ['Criocera dell\'asparago', 'Ruggine'],
     consigli: ['Destinargli un cassone dedicato: resta lì per molti anni e va escluso dalla rotazione.', 'Non raccogliere i primi 2 anni per far rinforzare le radici.']
+  },
+
+  // ───────────── AROMATICHE PERENNI ─────────────
+  {
+    id: 'rosmarino', nome: 'Rosmarino', emoji: '🌿', fam: 'lamiacee', esig: 'bassa',
+    desc: 'Arbusto sempreverde e rustico: una pianta basta per tutta la cucina di casa. Ama il sole e teme solo i ristagni.',
+    sole: 'Pieno sole',
+    terreno: 'Sciolto, sassoso, ben drenato, anche povero',
+    ph: '6,0 – 8,0',
+    acqua: { freq: 'ogni 10–15 giorni in estate, quasi mai in inverno', quant: '2–3 L per pianta', note: 'Teme molto i ristagni: meglio poca acqua che troppa. In vaso controlla più spesso.' },
+    germ: '—', tGerm: 'si moltiplica per talea o da piantina',
+    ciclo: 'Pianta perenne: si raccoglie tutto l\'anno',
+    dist: [60, 80],
+    cal: {
+      nord:   { sem: '', dir: '', tra: '4-5,9',      rac: '1-12' },
+      centro: { sem: '', dir: '', tra: '3-5,9-10',   rac: '1-12' },
+      sud:    { sem: '', dir: '', tra: '2-4,10-11',  rac: '1-12' }
+    },
+    amiche: ['salvia', 'carota', 'cappuccio', 'fagiolo'],
+    nemiche: [],
+    avv: ['Marciume radicale da ristagno', 'Crisomela del rosmarino (piccolo coleottero verde metallico)'],
+    consigli: ['Pota leggermente dopo la fioritura, senza tagliare il legno vecchio senza foglie.', 'Per moltiplicarlo fai talee di 10 cm in primavera.', 'Al Nord, in zone molto fredde, proteggi la base in inverno.']
+  },
+  {
+    id: 'salvia', nome: 'Salvia', emoji: '🌿', fam: 'lamiacee', esig: 'bassa',
+    desc: 'Aromatica perenne dalle foglie vellutate, profumatissima. Va rinnovata ogni 4–5 anni perché diventa legnosa.',
+    sole: 'Pieno sole',
+    terreno: 'Ben drenato, anche calcareo',
+    ph: '6,0 – 7,5',
+    acqua: { freq: 'ogni 7–10 giorni in estate', quant: '1–2 L per pianta', note: 'Soffre l\'umidità persistente: annaffia al piede e lascia asciugare tra un\'irrigazione e l\'altra.' },
+    germ: '10–20 giorni', tGerm: 'min 15 °C (di solito si parte da piantina o talea)',
+    ciclo: 'Pianta perenne: raccolta delle foglie da primavera ad autunno',
+    dist: [40, 60],
+    cal: {
+      nord:   { sem: '3', dir: '', tra: '4-5,9',     rac: '3-11' },
+      centro: { sem: '3', dir: '', tra: '3-5,9-10',  rac: '2-11' },
+      sud:    { sem: '2', dir: '', tra: '2-4,10-11', rac: '1-12' }
+    },
+    amiche: ['rosmarino', 'cappuccio', 'carota', 'fragola'],
+    nemiche: ['cetriolo'],
+    avv: ['Oidio con umidità', 'Marciume da ristagno'],
+    consigli: ['Cima i rametti per farla cespugliosa.', 'Taglia i fiori appassiti: rinvigorisce la pianta.']
+  },
+  {
+    id: 'timo', nome: 'Timo', emoji: '🌿', fam: 'lamiacee', esig: 'bassa',
+    desc: 'Piccolo cespuglio aromatico e rustico, ottimo anche come bordura delle aiuole. Attira le api.',
+    sole: 'Pieno sole',
+    terreno: 'Povero, sassoso, molto drenato',
+    ph: '6,5 – 8,0',
+    acqua: { freq: 'ogni 10–15 giorni in estate', quant: 'poca', note: 'Resiste bene alla siccità; l\'acqua in eccesso lo fa marcire.' },
+    germ: '10–20 giorni', tGerm: 'min 15 °C',
+    ciclo: 'Pianta perenne: raccolta da primavera ad autunno',
+    dist: [25, 30],
+    cal: {
+      nord:   { sem: '3-4', dir: '', tra: '4-5,9',     rac: '4-10' },
+      centro: { sem: '3',   dir: '', tra: '3-5,9-10',  rac: '3-11' },
+      sud:    { sem: '2-3', dir: '', tra: '2-4,10-11', rac: '1-12' }
+    },
+    amiche: ['cappuccio', 'pomodoro', 'melanzana', 'fragola'],
+    nemiche: [],
+    avv: ['Marciume da ristagno'],
+    consigli: ['Accorcia di un terzo dopo la fioritura per tenerlo compatto.', 'Ideale ai bordi delle aiuole e tra le pietre dei camminamenti.']
+  },
+  {
+    id: 'menta', nome: 'Menta', emoji: '🌿', fam: 'lamiacee', esig: 'media',
+    desc: 'Aromatica vigorosa e invadente: si espande con i rizomi e in poco tempo occupa tutto lo spazio intorno.',
+    sole: 'Mezz\'ombra o sole non troppo forte',
+    terreno: 'Fresco, umido, ricco',
+    ph: '6,0 – 7,5',
+    acqua: { freq: '2–3 volte a settimana in estate', quant: '1–2 L per pianta', note: 'Ama il terreno sempre fresco, al contrario delle altre aromatiche.' },
+    germ: '10–15 giorni', tGerm: 'min 15 °C (meglio da piantina o divisione dei cespi)',
+    ciclo: 'Pianta perenne: raccolta da primavera ad autunno',
+    dist: [30, 40],
+    cal: {
+      nord:   { sem: '', dir: '', tra: '3-5,9',      rac: '4-10' },
+      centro: { sem: '', dir: '', tra: '3-5,9-10',   rac: '4-11' },
+      sud:    { sem: '', dir: '', tra: '2-4,10-11',  rac: '3-11' }
+    },
+    amiche: ['cappuccio', 'pomodoro'],
+    nemiche: ['prezzemolo'],
+    avv: ['Ruggine della menta', 'Afidi'],
+    consigli: ['Coltivala in un vaso interrato o in un vaso a parte: altrimenti invade l\'aiuola.', 'Taglia spesso le cime, prima della fioritura, per avere foglie tenere.']
+  },
+  {
+    id: 'origano', nome: 'Origano', emoji: '🌿', fam: 'lamiacee', esig: 'bassa',
+    desc: 'Aromatica perenne del Mediterraneo: più è al sole e all\'asciutto, più è profumata.',
+    sole: 'Pieno sole',
+    terreno: 'Povero, calcareo, ben drenato',
+    ph: '6,5 – 8,0',
+    acqua: { freq: 'ogni 10–15 giorni in estate', quant: 'poca', note: 'Molto resistente alla siccità.' },
+    germ: '7–14 giorni', tGerm: 'min 15 °C',
+    ciclo: 'Pianta perenne: si raccoglie in fioritura (giugno–settembre) per essiccarlo',
+    dist: [30, 40],
+    cal: {
+      nord:   { sem: '3-4', dir: '', tra: '4-5,9',     rac: '6-9' },
+      centro: { sem: '3',   dir: '', tra: '3-5,9-10',  rac: '6-9' },
+      sud:    { sem: '2-3', dir: '', tra: '2-4,10-11', rac: '5-9' }
+    },
+    amiche: ['pomodoro', 'peperone', 'cappuccio'],
+    nemiche: [],
+    avv: ['Marciume da ristagno'],
+    consigli: ['Raccogli i rametti fioriti e falli seccare a mazzetti, appesi all\'ombra.']
+  },
+  {
+    id: 'erbacipollina', nome: 'Erba cipollina', emoji: '🌱', fam: 'amarillidacee', esig: 'bassa',
+    desc: 'Piccola perenne dal sapore delicato di cipolla; i fiori viola sono commestibili e attirano gli insetti utili.',
+    sole: 'Sole o mezz\'ombra',
+    terreno: 'Fresco e ricco',
+    ph: '6,0 – 7,0',
+    acqua: { freq: '1–2 volte a settimana in estate', quant: 'leggera', note: 'Tienila fresca: con la siccità le foglie diventano dure.' },
+    germ: '10–15 giorni', tGerm: 'min 10 °C',
+    ciclo: 'Pianta perenne: tagli continui da primavera ad autunno',
+    dist: [20, 25],
+    cal: {
+      nord:   { sem: '3-4', dir: '4-5', tra: '4-5,9',  rac: '4-10' },
+      centro: { sem: '3',   dir: '3-4', tra: '3-5,9',  rac: '3-11' },
+      sud:    { sem: '2-3', dir: '2-3', tra: '2-4,10', rac: '2-11' }
+    },
+    amiche: ['carota', 'pomodoro', 'fragola'],
+    nemiche: ['fagiolo', 'fagiolino', 'pisello'],
+    avv: ['Ruggine', 'Afidi'],
+    consigli: ['Taglia le foglie a 3–4 cm da terra: ricresce in pochi giorni.', 'Ogni 3–4 anni dividi il cespo e ripiantalo.']
+  },
+
+  // ───────────── ALTRE ─────────────
+  {
+    id: 'scalogno', nome: 'Scalogno', emoji: '🧅', fam: 'amarillidacee', esig: 'bassa',
+    desc: 'Parente della cipolla dal gusto più fine. Si pianta il bulbo, che si moltiplica formando un cespo di 5–10 bulbi.',
+    sole: 'Pieno sole',
+    terreno: 'Sciolto, ben drenato, senza letame fresco',
+    ph: '6,0 – 7,0',
+    acqua: { freq: '1 volta a settimana se non piove', quant: '10 L per m²', note: 'Sospendi un mese prima della raccolta: si conservano meglio.' },
+    germ: '—', tGerm: 'si pianta il bulbo',
+    ciclo: '120–150 giorni dall\'impianto',
+    dist: [15, 25],
+    cal: {
+      nord:   { sem: '', dir: '2-3',        tra: '', rac: '6-7' },
+      centro: { sem: '', dir: '10-11,2-3',  tra: '', rac: '6-7' },
+      sud:    { sem: '', dir: '10-12',      tra: '', rac: '5-6' }
+    },
+    amiche: ['carota', 'lattuga', 'barbabietola', 'fragola'],
+    nemiche: ['fagiolo', 'fagiolino', 'pisello', 'fava'],
+    avv: ['Peronospora', 'Mosca della cipolla'],
+    consigli: ['Interra il bulbo appena, con la punta fuori dal terreno.', 'Raccogli quando le foglie ingialliscono e lascialo asciugare qualche giorno.']
+  },
+  {
+    id: 'rapa', nome: 'Rapa', emoji: '🟣', fam: 'brassicacee', esig: 'media',
+    desc: 'Radice dolce e veloce, bianca e viola. Ottima come coltura autunnale dopo gli ortaggi estivi.',
+    sole: 'Sole o mezz\'ombra',
+    terreno: 'Fresco, sciolto, senza sassi',
+    ph: '6,0 – 7,5',
+    acqua: { freq: '1–2 volte a settimana', quant: '10 L per m²', note: 'Acqua regolare: con la siccità diventa fibrosa e piccante.' },
+    germ: '4–7 giorni', tGerm: 'min 5 °C',
+    ciclo: '50–70 giorni dalla semina',
+    dist: [10, 30],
+    cal: {
+      nord:   { sem: '', dir: '3-4,8-9', tra: '', rac: '5-6,10-11' },
+      centro: { sem: '', dir: '3,8-9',   tra: '', rac: '5,10-12' },
+      sud:    { sem: '', dir: '2,9-10',  tra: '', rac: '4,11-1' }
+    },
+    amiche: ['lattuga', 'pisello', 'spinacio'],
+    nemiche: ['fragola'],
+    avv: ['Altica', 'Mosca del cavolo'],
+    consigli: ['Diradala a 10 cm: troppo fitta resta piccola.', 'Raccoglila a 5–8 cm di diametro, quando è più tenera.']
   }
 ];
+
+// Varietà principali: tempi diversi dalla scheda generale (usati dal calendario personale).
+(function () {
+  const V = {
+    pomodoro: [
+      { id: 'ciliegino', nome: 'Ciliegino / datterino', ciclo: '60–75 giorni dal trapianto', note: 'Molto produttivo, a grappoli; ottimo anche in vaso.' },
+      { id: 'tondo', nome: 'Tondo liscio da insalata', ciclo: '70–85 giorni dal trapianto', note: 'Il più classico, versatile.' },
+      { id: 'sanmarzano', nome: 'San Marzano e allungati', ciclo: '75–90 giorni dal trapianto', note: 'Da salsa: polpa soda, maturazione abbastanza concentrata.' },
+      { id: 'cuorebue', nome: 'Cuore di bue', ciclo: '80–100 giorni dal trapianto', note: 'Frutti grandi da insalata: serve un tutore robusto.' }
+    ],
+    lattuga: [
+      { id: 'taglio', nome: 'Da taglio', ciclo: '25–35 giorni dalla semina', note: 'Si taglia più volte; perfetta per le semine scaglionate.' },
+      { id: 'gentilina', nome: 'Gentilina / lollo', ciclo: '45–60 giorni dal trapianto', note: 'Foglie arricciate, si raccoglie anche a foglie.' },
+      { id: 'cappuccio', nome: 'Cappuccio', ciclo: '50–65 giorni dal trapianto', note: 'Cespo chiuso e croccante.' },
+      { id: 'romana', nome: 'Romana', ciclo: '60–75 giorni dal trapianto', note: 'Cespo allungato, resiste meglio al caldo.' }
+    ],
+    zucchina: [
+      { id: 'genovese', nome: 'Chiara / genovese', ciclo: '45–55 giorni dalla semina', note: 'Molto produttiva e precoce.' },
+      { id: 'tonda', nome: 'Tonda di Nizza / Piacenza', ciclo: '45–55 giorni dalla semina', note: 'Ideale da ripieno.' },
+      { id: 'romanesca', nome: 'Romanesca (costoluta)', ciclo: '50–60 giorni dalla semina', note: 'Saporita, con fiore grande.' }
+    ],
+    peperone: [
+      { id: 'friggitello', nome: 'Friggitello', ciclo: '60–75 giorni dal trapianto', note: 'Piccolo e dolce, raccolto verde: molto produttivo.' },
+      { id: 'cornoditoro', nome: 'Corno di toro', ciclo: '75–90 giorni dal trapianto', note: 'Allungato, dolce.' },
+      { id: 'quadrato', nome: 'Quadrato (tipo Asti)', ciclo: '80–95 giorni dal trapianto', note: 'Grande e carnoso: più lento a colorarsi.' }
+    ],
+    patata: [
+      { id: 'precoce', nome: 'Precoce (novella)', ciclo: '70–90 giorni dall\'impianto', note: 'Da consumare presto, non si conserva a lungo.' },
+      { id: 'media', nome: 'Medio-precoce', ciclo: '90–110 giorni dall\'impianto', note: 'Buon compromesso tra resa e conservazione.' },
+      { id: 'tardiva', nome: 'Tardiva (da conservare)', ciclo: '110–130 giorni dall\'impianto', note: 'Resa maggiore, si conserva per mesi.' }
+    ],
+    cipolla: [
+      { id: 'bianca', nome: 'Bianca precoce', ciclo: '120–150 giorni dall\'impianto', note: 'Dolce, da consumare fresca.' },
+      { id: 'tropea', nome: 'Rossa di Tropea', ciclo: '130–160 giorni dall\'impianto', note: 'Dolcissima, si conserva poco.' },
+      { id: 'dorata', nome: 'Dorata da conservazione', ciclo: '150–180 giorni dall\'impianto', note: 'Si conserva fino all\'inverno.' }
+    ],
+    fagiolo: [
+      { id: 'borlotto', nome: 'Borlotto', ciclo: '70–80 giorni dalla semina (da sgranare fresco)', note: 'Da secco servono 90–110 giorni.' },
+      { id: 'cannellino', nome: 'Cannellino', ciclo: '80–90 giorni dalla semina (da sgranare fresco)', note: 'Pianta nana, ottimo da secco.' }
+    ],
+    carota: [
+      { id: 'precoce', nome: 'Precoce (tipo Nantese)', ciclo: '70–80 giorni dalla semina', note: 'Dolce, da consumare fresca.' },
+      { id: 'tardiva', nome: 'Tardiva (tipo Flakkee)', ciclo: '100–120 giorni dalla semina', note: 'Più grossa, si conserva bene.' }
+    ]
+  };
+  window.COLTURE.forEach(c => { if (V[c.id]) c.varieta = V[c.id]; });
+})();
+
+// Prezzo medio indicativo al dettaglio (€/kg, Italia) per stimare il risparmio del diario raccolti,
+// e per quanti anni i semi restano buoni (germinabilità indicativa, conservati al fresco e all'asciutto).
+(function () {
+  const PREZZO = {
+    pomodoro: 2.8, peperone: 3.2, melanzana: 2.5, peperoncino: 8, patata: 1.4, zucchina: 2.4, zucca: 1.8, cetriolo: 2.2,
+    melone: 1.8, anguria: 1, fagiolo: 5, fagiolino: 4.5, pisello: 5, fava: 3.5, cavolfiore: 2.5, broccolo: 3, cappuccio: 1.5,
+    cavolonero: 4, verza: 1.8, rucola: 12, ravanello: 4, cimedirapa: 3, lattuga: 3, radicchio: 3.5, indivia: 3, carciofo: 4,
+    carota: 1.6, sedano: 2.2, prezzemolo: 10, finocchio: 2.2, bietola: 3, spinacio: 4.5, barbabietola: 2.5, aglio: 7,
+    cipolla: 1.6, porro: 3, basilico: 20, fragola: 7, mais: 3, valerianella: 15, asparago: 9, rosmarino: 25, salvia: 30,
+    timo: 40, menta: 25, origano: 30, erbacipollina: 30, scalogno: 6, rapa: 2
+  };
+  const SEMI_ANNI = {
+    pomodoro: 4, peperone: 3, melanzana: 4, peperoncino: 3, zucchina: 5, zucca: 5, cetriolo: 5, melone: 5, anguria: 5,
+    fagiolo: 3, fagiolino: 3, pisello: 3, fava: 4, cavolfiore: 4, broccolo: 4, cappuccio: 4, cavolonero: 4, verza: 4,
+    rucola: 4, ravanello: 4, cimedirapa: 4, lattuga: 3, radicchio: 4, indivia: 4, carciofo: 5, carota: 3, sedano: 4,
+    prezzemolo: 2, finocchio: 3, bietola: 4, spinacio: 3, barbabietola: 4, cipolla: 1, porro: 2, basilico: 4, fragola: 3,
+    mais: 2, valerianella: 4, asparago: 4, salvia: 3, timo: 3, menta: 3, origano: 3, erbacipollina: 2, rapa: 4
+  };
+  window.COLTURE.forEach(c => { c.prezzo = PREZZO[c.id] || 3; if (SEMI_ANNI[c.id]) c.semiAnni = SEMI_ANNI[c.id]; });
+})();
