@@ -343,6 +343,7 @@ window.OrtoCassoni = function (ctx) {
           <p class="tagline">${(n => n ? `${n} ${n === 1 ? 'coltura' : 'colture'} in campo` : 'Pronta da progettare')(coltureDi(piano(cs, k)).length)} · ${cols}×${rows} celle da ${CELLA} cm${cs.perenne ? ' · perenni' : ''}</p>
           <button class="btn primary hero-cta" id="vaiDisegna">✏️ Disegna l'aiuola</button>
         </div>
+        <section class="card" id="calCard">${htmlCalendarioAiuola(cs, k)}</section>
         ${account.attivo ? `
         <section class="card" id="irrCard">${htmlIrrigazione(cs, null)}</section>
         <section class="card" id="ckCard">${htmlCheckup(cs)}</section>` : ''}
@@ -390,6 +391,107 @@ window.OrtoCassoni = function (ctx) {
 
   // ── Diario dei raccolti (premium) ───────────────────────
   const oggiISO = () => window.OrtoPromemoria.isoGiorno(new Date());
+
+  // ── Calendario personale (date d'impianto e tappe) ──────
+  const dataBreve = iso => new Date(iso + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  const modoPredefinito = c => c.cal[state.zona].tra ? 'trapianto' : 'semina';
+  // Tappe delle colture del piano della stagione k, calcolate come se fossero in campo oggi.
+  function tappeDi(cs, k) {
+    const p = piano(cs, k);
+    if (!p || !p.impianti) return {};
+    const P = window.OrtoPromemoria, finto = Object.assign({}, cs, { piani: { [P.stagioneDa(new Date())]: p } });
+    return Object.fromEntries(P.tappe(finto, BY_ID, new Date()).map(t => [t.coltura.id, t]));
+  }
+  function formImpianto(c, imp) {
+    const modo = (imp && imp.modo) || modoPredefinito(c);
+    return `<form class="cal-form" data-c="${c.id}">
+      <input type="date" name="data" required value="${imp ? imp.data : oggiISO()}" max="${window.OrtoPromemoria.piuGiorni(oggiISO(), 60)}">
+      <select name="modo"><option value="trapianto" ${modo === 'trapianto' ? 'selected' : ''}>trapianto</option><option value="semina" ${modo === 'semina' ? 'selected' : ''}>semina</option></select>
+      <button class="btn primary" type="submit">Salva</button>
+    </form>`;
+  }
+  function htmlCalendarioAiuola(cs, k) {
+    const titolo = '<div class="section-title"><h2>📆 Calendario dell\'aiuola</h2></div>';
+    const ids = coltureDi(piano(cs, k)).sort((a, b) => BY_ID[a].nome.localeCompare(BY_ID[b].nome));
+    if (!ids.length) return titolo + '<p class="muted small" style="margin:0">Disegna l\'aiuola: per ogni coltura potrai indicare quando l\'hai piantata e vedere raccolte e risemine previste.</p>';
+    const p = piano(cs, k), tp = tappeDi(cs, k), oggi = oggiISO();
+    const righe = ids.map(id => {
+      const c = BY_ID[id], imp = p.impianti && p.impianti[id], t = tp[id];
+      const testa = `<div class="cal-r-testa"><span class="em">${c.emoji}</span><strong>${esc(c.nome)}</strong>`;
+      if (!imp) {
+        return `<div class="cal-r">${testa}</div><p class="muted small" style="margin:4px 0 6px">Quando l'hai piantata?</p>${formImpianto(c, null)}</div>`;
+      }
+      let info = '', barra = '';
+      if (!t || t.stato === 'perenne') {
+        info = 'Coltura perenne: produce per più anni.';
+      } else {
+        const frac = t.stato === 'crescita' ? t.progresso : 1;
+        barra = `<div class="cal-barra ${t.stato}"><span style="width:${Math.round(frac * 100)}%"></span></div>`;
+        if (t.stato === 'crescita') {
+          const mancano = window.OrtoPromemoria.giorniTra(oggi, t.raccoltaDa);
+          info = `Prima raccolta prevista: <strong>${dataBreve(t.raccoltaDa)} – ${dataBreve(t.raccoltaA)}</strong>${mancano > 0 ? ` · tra circa ${mancano} giorni` : ''}`;
+        } else if (t.stato === 'raccolta') {
+          info = `🧺 <strong>In raccolta</strong>, fino a circa ${dataBreve(t.fine)}`;
+        } else {
+          info = '🔚 <strong>Ciclo concluso</strong>: libera il posto e guarda cosa piantare dopo.';
+        }
+        if (t.risemina) {
+          info += t.risemina <= oggi
+            ? `<br>🌱 È il momento di una nuova semina scaglionata. <button class="link" data-riseminato="${id}">Ho riseminato oggi</button>`
+            : `<br>🌱 Prossima semina scaglionata: ${dataBreve(t.risemina)}`;
+        }
+      }
+      const quando = imp.data > oggi ? `Prevista il ${dataBreve(imp.data)}` : `${imp.modo === 'semina' ? 'Seminata' : 'Trapiantata'} il ${dataBreve(imp.data)}${t && t.giorni >= 0 ? ` · giorno ${t.giorni}` : ''}`;
+      return `<div class="cal-r">${testa}<span class="muted small cal-quando">${quando}</span></div>
+        ${barra}<p class="small" style="margin:4px 0 0">${info}</p>
+        <details class="cal-modifica"><summary>modifica data</summary>${formImpianto(c, imp)}<button class="link danger" data-togli-data="${id}">rimuovi data</button></details></div>`;
+    }).join('');
+    return titolo + `<div class="cal-righe">${righe}</div>
+      <p class="muted small" style="margin:10px 0 0">Date indicative calcolate dalla scheda di ogni coltura: con il caldo la raccolta può anticipare, con il freddo ritardare.</p>`;
+  }
+  function bindCalendarioAiuola(root, cs, k) {
+    const el = root.querySelector('#calCard');
+    if (!el) return;
+    const aggiornaCard = () => { el.innerHTML = htmlCalendarioAiuola(cs, k); };
+    const imposta = (id, valore) => {
+      const p = piano(cs, k, true);
+      p.impianti = p.impianti || {};
+      if (valore) p.impianti[id] = valore; else delete p.impianti[id];
+      salva(); aggiornaCard();
+    };
+    el.addEventListener('submit', e => {
+      const f = e.target.closest('.cal-form');
+      if (!f) return;
+      e.preventDefault();
+      imposta(f.dataset.c, { data: f.data.value, modo: f.modo.value });
+    });
+    el.addEventListener('click', e => {
+      const r = e.target.closest('[data-riseminato]'), t = e.target.closest('[data-togli-data]');
+      if (r) imposta(r.dataset.riseminato, { data: oggiISO(), modo: 'semina' });
+      if (t) imposta(t.dataset.togliData, null);
+    });
+  }
+
+  // Prossime tappe di tutte le aiuole (pagina "Questo mese").
+  function htmlCalendarioPersonale() {
+    if (!dati.cassoni.length) return '';
+    const P = window.OrtoPromemoria, oggi = oggiISO(), limite = P.piuGiorni(oggi, 60), voci = [];
+    let conDate = 0;
+    dati.cassoni.forEach(cs => P.tappe(cs, BY_ID, new Date()).forEach(t => {
+      conDate++;
+      const nome = `${t.coltura.emoji} ${esc(t.coltura.nome)} <span class="muted">· ${esc(cs.nome)}</span>`, link = '#/cassone/' + cs.id;
+      if (t.stato === 'crescita' && t.raccoltaDa <= limite) voci.push({ d: t.raccoltaDa, ic: '🧺', h: `Inizio raccolta: ${nome}`, link });
+      if (t.stato === 'raccolta') voci.push({ d: oggi, ic: '🧺', h: `In raccolta: ${nome}`, link, ora: true });
+      if (t.fine && t.stato !== 'finito' && t.fine <= limite) voci.push({ d: t.fine, ic: '🔚', h: `Fine ciclo: ${nome}`, link });
+      if (t.risemina && t.risemina <= limite) voci.push({ d: t.risemina < oggi ? oggi : t.risemina, ic: '🌱', h: `Risemina: ${nome}`, link, ora: t.risemina <= oggi });
+    }));
+    const titolo = '<div class="section-title"><h2>📆 Il tuo calendario</h2></div>';
+    if (!conDate) return `<section class="card">${titolo}<p class="muted small" style="margin:0">Nella pagina di ogni aiuola indica quando hai piantato le colture: qui vedrai raccolte, fine ciclo e risemine dei prossimi due mesi.</p></section>`;
+    if (!voci.length) return `<section class="card">${titolo}<p class="empty" style="margin:0">Nessuna tappa nei prossimi due mesi.</p></section>`;
+    voci.sort((a, b) => a.d.localeCompare(b.d));
+    return `<section class="card">${titolo}<ul class="cal-lista">${voci.slice(0, 10).map(v => `
+      <li><span class="cal-data">${v.ora ? 'Ora' : dataBreve(v.d)}</span><span>${v.ic}</span><a href="${v.link}">${v.h}</a></li>`).join('')}</ul></section>`;
+  }
 
   // ── Irrigazione in litri (premium) ──────────────────────
   function htmlIrrigazione(cs, stato) {
@@ -764,6 +866,7 @@ window.OrtoCassoni = function (ctx) {
     root.querySelector('#vaiDisegna').onclick = () => root.querySelector('#disegna').scrollIntoView({ behavior: 'smooth', block: 'start' });
     aggiornaIrrigazione(root, cs);
     bindCheckup(root, cs);
+    bindCalendarioAiuola(root, cs, k);
 
     // Modifica / elimina
     const f = root.querySelector('form[data-form="cassone"]');
@@ -936,6 +1039,7 @@ window.OrtoCassoni = function (ctx) {
       return cs.id;
     },
     coltureDiStagione: () => C.filter(c => adatta(c, OGGI)),
+    htmlCalendarioPersonale,
     // Dati per la testata della pagina di un'aiuola.
     info(id) {
       const cs = trova(id);

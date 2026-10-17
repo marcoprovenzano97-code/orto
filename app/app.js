@@ -182,7 +182,7 @@
         </div>
         <button class="iconbtn" data-act="next" aria-label="Mese successivo">›</button>
       </div>
-      <div class="stack">${account.htmlOggi()}${blocchi}</div>
+      <div class="stack">${account.htmlOggi()}${cassoni.htmlCalendarioPersonale()}${blocchi}</div>
       <p class="disclaimer">Calendari indicativi per la zona ${esc(ZONE[z].nome)}: ${esc(ZONE[z].desc)} Adatta le date alle gelate della tua zona.</p>`;
   }
   function bindMese(root) {

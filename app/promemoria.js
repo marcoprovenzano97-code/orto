@@ -131,6 +131,61 @@
       serve: mm >= SOGLIA_MM && (d.precipitation_sum[i] || 0) < 5
     };
   }
+  // ── Calendario personale: tappe di ogni coltura dalla data d'impianto ────────────
+  // Le date d'impianto stanno in piano.impianti = { <coltura>: { data: 'AAAA-MM-GG', modo: 'trapianto' | 'semina' } }.
+  // Per quanti giorni, dopo la prima raccolta, la coltura continua a produrre (indicativo).
+  const DURATA_RACCOLTA = {
+    pomodoro: 75, peperone: 80, melanzana: 70, peperoncino: 80, patata: 20, zucchina: 60, zucca: 30, cetriolo: 45,
+    melone: 30, anguria: 25, fagiolo: 30, fagiolino: 30, pisello: 25, fava: 25, cavolfiore: 20, broccolo: 30,
+    cappuccio: 30, cavolonero: 120, verza: 60, rucola: 30, ravanello: 10, cimedirapa: 30, lattuga: 20, radicchio: 60,
+    indivia: 30, carota: 45, sedano: 40, prezzemolo: 150, finocchio: 30, bietola: 120, spinacio: 30, barbabietola: 40,
+    aglio: 20, cipolla: 30, porro: 90, basilico: 90, mais: 15, valerianella: 60
+  };
+  // Colture da riseminare a scaglioni per avere raccolti continui.
+  const SCALARI = new Set(['lattuga', 'rucola', 'ravanello', 'fagiolino', 'spinacio', 'cimedirapa', 'valerianella']);
+  const INTERVALLO_SCALARE = 21;
+  const SEMENZAIO_GG = 25;        // giorni medi tra semina in semenzaio e trapianto
+  const GIORNO = 864e5;
+  const daISO = s => new Date(s + 'T12:00:00');
+  const piuGiorni = (iso, n) => isoGiorno(new Date(daISO(iso).getTime() + n * GIORNO));
+  const giorniTra = (a, b) => Math.round((daISO(b) - daISO(a)) / GIORNO);
+
+  // "70–90 giorni dal trapianto" → { min: 70, max: 90, rif: 'trapianto' }; null per le perenni.
+  function ciclo(c) {
+    const m = /(\d+)\s*[–-]\s*(\d+)\s*giorni/.exec(c.ciclo || '');
+    if (!m) return null;
+    return { min: +m[1], max: +m[2], rif: /trapianto/.test(c.ciclo) ? 'trapianto' : /semina/.test(c.ciclo) ? 'semina' : 'impianto' };
+  }
+
+  /** Tappe delle colture di un'aiuola che hanno una data d'impianto (stagioni ancora in campo). */
+  function tappe(cs, byId, oggi) {
+    const out = [], iso = isoGiorno(oggi), viste = new Set();
+    chiaviInCampo(oggi).forEach(k => {
+      const p = cs.piani && cs.piani[k];
+      if (!p || !p.impianti) return;
+      const presenti = new Set([...Object.values(p.celle || {}), ...(p.extra || [])]);
+      Object.entries(p.impianti).forEach(([id, imp]) => {
+        const c = byId[id];
+        if (!c || !imp || !imp.data || !presenti.has(id) || viste.has(id)) return;
+        viste.add(id);
+        const cy = ciclo(c), giorni = giorniTra(imp.data, iso);
+        const t = { aiuola: cs, coltura: c, stagione: k, data: imp.data, modo: imp.modo || 'trapianto', giorni };
+        if (!cy) { out.push(Object.assign(t, { stato: 'perenne' })); return; }
+        // Il ciclo della scheda parte dalla semina o dal trapianto: correggo se l'impianto è avvenuto nell'altro modo.
+        const corr = cy.rif === 'semina' && t.modo === 'trapianto' ? -SEMENZAIO_GG : cy.rif === 'trapianto' && t.modo === 'semina' ? SEMENZAIO_GG : 0;
+        t.min = Math.max(5, cy.min + corr); t.max = Math.max(t.min, cy.max + corr);
+        t.raccoltaDa = piuGiorni(imp.data, t.min);
+        t.raccoltaA = piuGiorni(imp.data, t.max);
+        t.fine = piuGiorni(t.raccoltaA, DURATA_RACCOLTA[id] || 21);
+        t.stato = iso < t.raccoltaDa ? 'crescita' : iso <= t.fine ? 'raccolta' : 'finito';
+        t.progresso = Math.max(0, Math.min(1, giorni / t.min));
+        if (SCALARI.has(id) && t.stato !== 'finito') t.risemina = piuGiorni(imp.data, INTERVALLO_SCALARE);
+        out.push(t);
+      });
+    });
+    return out;
+  }
+
   const annaffiatoi = l => {
     if (l <= 3) return '';
     const n = Math.max(1, Math.round(l / 5));
@@ -205,6 +260,23 @@
       }
     }
 
+    // Tappe del calendario personale (una notifica per tappa, grazie all'id che include la data).
+    const nomeIn = t => `${t.coltura.emoji} ${t.coltura.nome} (${t.aiuola.nome})`;
+    aiuole.forEach(cs => tappe(cs, byId, oggi).forEach(t => {
+      if (t.stato === 'raccolta' && iso <= piuGiorni(t.raccoltaDa, 6)) {
+        out.push({ id: `pronto-${cs.id}-${t.coltura.id}-${t.raccoltaDa}`, tipo: 'evento', livello: 'media', titolo: `🧺 Pronto da raccogliere: ${nomeIn(t)}`,
+          testo: `Inizia il periodo di raccolta previsto (piantato il ${t.data}). Controlla la maturazione: con il caldo può anticipare, con il freddo ritardare.`, link: '#/cassone/' + cs.id });
+      }
+      if (t.stato === 'finito' && iso <= piuGiorni(t.fine, 7)) {
+        out.push({ id: `fine-${cs.id}-${t.coltura.id}-${t.fine}`, tipo: 'evento', livello: 'info', titolo: `🔚 Fine ciclo: ${nomeIn(t)}`,
+          testo: 'La coltura è a fine produzione: quando la togli, guarda cosa piantare dopo seguendo la rotazione.', link: '#/cassone/' + cs.id });
+      }
+      if (t.risemina && iso >= t.risemina && iso <= piuGiorni(t.risemina, 6)) {
+        out.push({ id: `risemina-${cs.id}-${t.coltura.id}-${t.risemina}`, tipo: 'evento', livello: 'info', titolo: `🌱 Risemina: ${nomeIn(t)}`,
+          testo: 'Sono passate tre settimane dall\'ultima semina: una nuova semina ora ti dà raccolti continui.', link: '#/cassone/' + cs.id });
+      }
+    }));
+
     const daRaccogliere = uniche(campo.filter(x => mesi(x.c.cal[zona].rac).has(m)));
     if (daRaccogliere.length) {
       out.push({ id: `raccolta-${iso.slice(0, 7)}`, tipo: 'lavori', livello: 'info', titolo: '🧺 Periodo di raccolta', testo: elenco(daRaccogliere) + '.' });
@@ -221,5 +293,5 @@
     return out;
   }
 
-  root.OrtoPromemoria = { calcola, stagioneDa, isoGiorno, irrigazione, annaffiatoi };
+  root.OrtoPromemoria = { calcola, stagioneDa, isoGiorno, irrigazione, annaffiatoi, tappe, ciclo, piuGiorni, giorniTra };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -64,8 +64,8 @@ Deno.serve(async (req) => {
 
     const voci: Voce[] = G.OrtoPromemoria.calcola({ colture: G.COLTURE, dati: orto?.dati ?? { cassoni: [] }, zona: p.zona, meteo, oggi });
     const daInviare: { chiave: string; title: string; body: string; url: string }[] = [];
-    voci.filter(v => v.tipo === 'meteo' && v.livello !== 'info').forEach(v =>
-      daInviare.push({ chiave: v.id, title: v.titolo, body: v.testo, url: './#/mese' }));
+    voci.filter(v => (v.tipo === 'meteo' && v.livello !== 'info') || v.tipo === 'evento').forEach(v =>
+      daInviare.push({ chiave: v.id, title: v.titolo, body: v.testo, url: v.link ? './' + v.link : './#/mese' }));
     if (lunedi) {
       const lavori = voci.filter(v => v.tipo === 'lavori');
       if (lavori.length) {

@@ -483,3 +483,27 @@ body.bv-aperto { overflow: hidden; }
 .bv-colture { max-height: 42svh; overflow-y: auto; }
 .bv-colture .chip { cursor: pointer; }
 .bv-piede { display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+
+/* ── Calendario personale ────────────────────────────── */
+.cal-righe { display: flex; flex-direction: column; }
+.cal-r { padding: 12px 0; border-top: 1px solid var(--line); }
+.cal-r:first-child { border-top: 0; padding-top: 0; }
+.cal-r-testa { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cal-r-testa .em { font-size: 1.3rem; }
+.cal-quando { margin-left: auto; }
+.cal-barra { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin: 8px 0 0; }
+.cal-barra span { display: block; height: 100%; background: var(--dir); border-radius: 4px; }
+.cal-barra.raccolta span { background: var(--rac); }
+.cal-barra.finito span { background: var(--muted); }
+.cal-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cal-form input, .cal-form select { padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: .9rem; }
+.cal-form .btn { padding: 7px 14px; }
+.cal-modifica { margin-top: 6px; font-size: .85rem; }
+.cal-modifica > summary { color: var(--muted); }
+.cal-modifica[open] > summary { margin-bottom: 6px; }
+.cal-modifica .link { margin-top: 6px; }
+.cal-lista { list-style: none; margin: 0; padding: 0; }
+.cal-lista li { display: grid; grid-template-columns: 58px 22px 1fr; gap: 6px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); }
+.cal-lista li:first-child { border-top: 0; }
+.cal-lista a { text-decoration: none; color: var(--text); }
+.cal-data { font-weight: 700; font-size: .85rem; color: var(--green); }

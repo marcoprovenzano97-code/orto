@@ -66,10 +66,15 @@ function descriviOrto(dati: any, meteo: any, oggi: Date, checkup: any[]) {
       .map(k => `${stagioneEtichetta(k)}: ${nomi(k).join(', ')}`);
     const ir = meteo ? P.irrigazione(cs, byId, meteo, oggi) : null;
     const acqua = !ir ? '' : ir.serve ? ` Acqua stimata oggi: circa ${ir.litri} litri.` : ' Oggi non serve annaffiare (stima).';
+    // deno-lint-ignore no-explicit-any
+    const date = P.tappe(cs, byId, oggi).map((t: any) => t.stato === 'perenne'
+      ? `${t.coltura.nome} piantata il ${t.data}`
+      : `${t.coltura.nome} (${t.modo} il ${t.data}, giorno ${t.giorni}: ${t.stato === 'crescita' ? `prima raccolta prevista ${t.raccoltaDa}–${t.raccoltaA}` : t.stato === 'raccolta' ? `in raccolta fino a circa ${t.fine}` : 'ciclo concluso'})`);
+    const calendario = date.length ? ` Date d'impianto: ${date.join('; ')}.` : '';
     righe.push(`- ${cs.nome} (${tipi[cs.tipo] || 'cassone rialzato'}, ${cs.larghezza}×${cs.lunghezza} cm${cs.perenne ? ', colture perenni' : ''}). ` +
       `In questa stagione (${stagioneEtichetta(kOggi)}): ${nomi(kOggi).join(', ') || 'vuota'}.` +
       (passate.length ? ` Stagioni precedenti — ${passate.join('; ')}.` : '') +
-      (cs.irrigata ? ` Ultima irrigazione registrata: ${cs.irrigata}.` : '') + acqua);
+      calendario + (cs.irrigata ? ` Ultima irrigazione registrata: ${cs.irrigata}.` : '') + acqua);
   });
   let met = 'Meteo non disponibile (comune non impostato).';
   if (meteo && meteo.daily) {
