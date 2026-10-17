@@ -1,5 +1,5 @@
 // Assistente dell'orto: risponde alle domande dell'utente conoscendo il suo orto
-// (aiuole, colture in campo, zona, meteo, irrigazione, ultimi check-up). Solo Premium, 50 messaggi al mese.
+// (aiuole, colture in campo, zona, meteo, irrigazione, ultimi check-up). Premium: 50 messaggi al mese; account gratuiti: 3.
 //
 // Richiesta (POST, JSON, con l'Authorization della sessione Supabase):
 //   { messaggi: [{ ruolo: 'utente' | 'assistente', testo }] }   — l'ultimo è la nuova domanda
@@ -11,7 +11,8 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.130.0';
 
 // deno-lint-ignore no-explicit-any
 const G = globalThis as any;
-const LIMITE_MESE = 50;
+const LIMITE_PREMIUM = 50;
+const LIMITE_GRATIS = 3;          // domande di prova al mese per gli account gratuiti
 const MODELLO = 'claude-opus-5-5';
 const STORIA_MAX = 12;            // messaggi precedenti inviati al modello
 const TESTO_MAX = 2000;           // caratteri per messaggio
@@ -93,15 +94,18 @@ Deno.serve(async (req) => {
 
   const { data: prof } = await sb.from('profili').select('premium, premium_fino, zona, luogo, lat, lon').eq('id', uid).maybeSingle();
   const premium = !!prof?.premium && (!prof.premium_fino || new Date(prof.premium_fino) > new Date());
-  if (!premium) return risposta({ errore: 'L\'assistente è una funzione Premium.' }, 403);
+  const limite = premium ? LIMITE_PREMIUM : LIMITE_GRATIS;
   const inizioMese = new Date(); inizioMese.setDate(1); inizioMese.setHours(0, 0, 0, 0);
   const { count } = await sb.from('assistente_log').select('id', { count: 'exact', head: true }).eq('user_id', uid).gte('creato', inizioMese.toISOString());
-  if ((count ?? 0) >= LIMITE_MESE) {
-    return risposta({ errore: `Hai usato tutti i ${LIMITE_MESE} messaggi di questo mese. Si rinnovano il primo del mese.` }, 429);
+  if ((count ?? 0) >= limite) {
+    return premium
+      ? risposta({ errore: `Hai usato tutti i ${limite} messaggi di questo mese. Si rinnovano il primo del mese.` }, 429)
+      : risposta({ errore: `Hai usato le ${limite} domande gratuite di questo mese. Con Premium ne hai ${LIMITE_PREMIUM} al mese, più il check-up con foto e gli avvisi meteo.`, premium: true }, 429);
   }
 
   // Conversazione: alterna utente/assistente, inizia con l'utente e finisce con la nuova domanda.
-  let corpo: { messaggi?: { ruolo?: string; testo?: string }[] };
+  // "orto": le aiuole inviate dall'app, usate quando non sono sincronizzate (account gratuiti).
+  let corpo: { messaggi?: { ruolo?: string; testo?: string }[]; orto?: { cassoni?: unknown[] } };
   try { corpo = await req.json(); } catch { return risposta({ errore: 'Richiesta non valida.' }, 400); }
   const lista = (corpo.messaggi || []).filter(m => m && typeof m.testo === 'string' && m.testo.trim())
     .map(m => ({ role: m.ruolo === 'assistente' ? 'assistant' as const : 'user' as const, content: m.testo!.slice(0, TESTO_MAX) }));
@@ -124,7 +128,8 @@ Deno.serve(async (req) => {
       meteo = await r.json();
     } catch { /* senza meteo */ }
   }
-  const o = descriviOrto(orto?.dati, meteo, oggi, ck || []);
+  const dalTelefono = corpo.orto && Array.isArray(corpo.orto.cassoni) && JSON.stringify(corpo.orto).length < 300_000 ? corpo.orto : null;
+  const o = descriviOrto(orto?.dati || dalTelefono, meteo, oggi, ck || []);
   const contesto = [
     `Data di oggi: ${oggi.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`,
     `Zona climatica: ${G.ZONE[prof?.zona || 'nord']?.nome || 'Nord'} Italia${prof?.luogo ? `; comune: ${prof.luogo}` : ''}.`,
@@ -166,5 +171,5 @@ Deno.serve(async (req) => {
     user_id: uid, token_input: msg.usage?.input_tokens ?? null, token_output: msg.usage?.output_tokens ?? null,
     token_cache: msg.usage?.cache_read_input_tokens ?? null
   });
-  return risposta({ testo, rimasti: LIMITE_MESE - (count ?? 0) - 1 });
+  return risposta({ testo, rimasti: limite - (count ?? 0) - 1, premium });
 });

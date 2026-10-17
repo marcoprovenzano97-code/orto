@@ -11,7 +11,7 @@ window.OrtoAssistente = function (ctx) {
     'Come preparo il terreno per l\'inverno?'
   ];
   let chat = store.get('chat', []);
-  let attesa = false, errore = '', rimasti = null;
+  let attesa = false, errore = '', invito = false, rimasti = null;
 
   const salvaChat = () => { chat = chat.slice(-MAX_SALVATI); store.set('chat', chat); };
 
@@ -30,12 +30,13 @@ window.OrtoAssistente = function (ctx) {
 
   function view() {
     if (!account.attivo) return '<div class="card"><p style="margin:0">L\'assistente è in arrivo.</p></div>';
-    if (!account.utente() || !account.premium()) {
+    if (!account.utente()) {
       return `<a class="card premium-teaser" href="#/account">
         <span class="pt-icon">💬</span>
-        <span><strong>Chiedi qualsiasi cosa sul tuo orto</strong><span class="muted small" style="display:block">L'assistente conosce le tue aiuole, le colture, la tua zona e il meteo, e risponde in modo personale. Disponibile con Premium.</span></span>
+        <span><strong>Chiedi qualsiasi cosa sul tuo orto</strong><span class="muted small" style="display:block">L'assistente conosce le tue aiuole, le colture, la tua zona e il meteo, e risponde in modo personale. Crea un account gratuito per fare 3 domande al mese; con Premium ne hai 50.</span></span>
         <span class="chev">›</span></a>`;
     }
+    const premium = account.premium();
     const msg = chat.map(m => `<div class="bolla ${m.ruolo === 'utente' ? 'io' : 'lui'}">${m.ruolo === 'utente' ? `<p>${esc(m.testo)}</p>` : formatta(m.testo)}</div>`).join('');
     return `
       <div class="chat" id="chat">
@@ -45,14 +46,14 @@ window.OrtoAssistente = function (ctx) {
         </div>`}
         ${msg}
         ${attesa ? '<div class="bolla lui attesa"><span class="ck-spinner"></span> Sto pensando…</div>' : ''}
-        ${errore ? `<p class="note err">${esc(errore)}</p>` : ''}
+        ${errore ? `<p class="note err">${esc(errore)}${invito ? ' <a href="#/account">Scopri il Premium</a>' : ''}</p>` : ''}
       </div>
       <form class="chat-invio" id="chatForm">
         <textarea name="testo" rows="1" maxlength="2000" placeholder="Scrivi una domanda sul tuo orto…" ${attesa ? 'disabled' : ''}></textarea>
         <button class="btn primary" type="submit" ${attesa ? 'disabled' : ''} aria-label="Invia">➤</button>
       </form>
       <div class="chat-piede muted small">
-        <span>${rimasti != null ? `Messaggi rimasti questo mese: ${rimasti}` : 'Fino a 50 messaggi al mese.'}</span>
+        <span>${rimasti != null ? `${premium ? 'Messaggi' : 'Domande gratuite'} rimast${premium ? 'i' : 'e'} questo mese: ${rimasti}` : premium ? 'Fino a 50 messaggi al mese.' : '3 domande gratuite al mese · <a href="#/account">con Premium 50</a>'}</span>
         ${chat.length ? '<button class="link" id="chatNuova">Nuova conversazione</button>' : ''}
       </div>
       <p class="muted small" style="margin:6px 0 0">Le risposte sono generate con l'intelligenza artificiale e possono contenere errori: verifica le indicazioni importanti.</p>`;
@@ -68,14 +69,14 @@ window.OrtoAssistente = function (ctx) {
       testo = testo.trim();
       if (!testo || attesa) return;
       chat.push({ ruolo: 'utente', testo }); salvaChat();
-      attesa = true; errore = '';
+      attesa = true; errore = ''; invito = false;
       ridisegna(); setTimeout(scorri, 50);
       try {
         const r = await account.assistente(chat.slice(-12));
         chat.push({ ruolo: 'assistente', testo: r.testo }); salvaChat();
         rimasti = r.rimasti;
       } catch (e) {
-        errore = e.message;
+        errore = e.message; invito = !!e.invitoPremium;
         chat.pop(); salvaChat();          // la domanda non è stata elaborata: la rimetto nel campo
         setTimeout(() => { const t = document.querySelector('#chatForm textarea'); if (t) t.value = testo; }, 0);
       }

@@ -458,7 +458,7 @@
         return { foto: a.tipo === 'terra' ? FOTO.terra : a.tipo === 'vaso' ? FOTO.vaso : FOTO.cassone, eyebrow: esc(a.tipoNome), titolo: a.nome, sub: `${a.larghezza} × ${a.lunghezza} cm · ${esc(a.stagione)}`, crumbs: [['Il mio orto', '#/cassoni'], [a.nome]] };
       }
       case 'guida': return { foto: FOTO.guida, eyebrow: 'Guida', titolo: 'Guida all\'orto', sub: 'Rotazione, famiglie botaniche, irrigazione e consociazioni.', crumbs: [['Guida']] };
-      case 'assistente': return { foto: FOTO.aiuole, eyebrow: 'Premium', titolo: 'Assistente dell\'orto', sub: 'Chiedi qualsiasi cosa: conosce le tue aiuole, la tua zona e il meteo.', crumbs: [['Assistente']] };
+      case 'assistente': return { foto: FOTO.aiuole, eyebrow: 'Assistente', titolo: 'Assistente dell\'orto', sub: 'Chiedi qualsiasi cosa: conosce le tue aiuole, la tua zona e il meteo.', crumbs: [['Assistente']] };
       case 'privacy': return { foto: FOTO.terra, eyebrow: 'Privacy', titolo: 'Informativa privacy', sub: 'Quali dati trattiamo, perché e come puoi controllarli.', crumbs: [['Privacy']] };
       case 'termini': return { foto: FOTO.terra, eyebrow: 'Condizioni', titolo: 'Condizioni d\'uso', sub: 'Le regole del servizio, in parole semplici.', crumbs: [['Condizioni d\'uso']] };
       case 'account': return { foto: FOTO.account, eyebrow: 'Account', titolo: account.utente() ? 'Il tuo account' : 'Accedi o registrati', sub: 'Premium, sincronizzazione, meteo e notifiche.', crumbs: [['Account']] };

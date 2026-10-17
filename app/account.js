@@ -459,11 +459,14 @@ window.OrtoAccount = function (ctx) {
   }
   // Invia la foto alla funzione "checkup" e restituisce { esito, rimasti }.
   async function assistente(messaggi) {
-    const { data, error } = await sb.functions.invoke('assistente', { body: { messaggi } });
+    // Le aiuole del dispositivo (senza miniature dei check-up e raccolti), per chi non le ha sincronizzate.
+    const orto = fonte ? { cassoni: (fonte.get().cassoni || []).map(({ checkup, raccolti, ...cs }) => cs) } : null;
+    const { data, error } = await sb.functions.invoke('assistente', { body: { messaggi, orto } });
     if (error) {
-      let testo = 'Risposta non riuscita, riprova più tardi.';
-      try { const j = await error.context.json(); if (j && j.errore) testo = j.errore; } catch (e) { /* ignore */ }
-      throw new Error(testo);
+      let testo = 'Risposta non riuscita, riprova più tardi.', invitoPremium = false;
+      try { const j = await error.context.json(); if (j && j.errore) { testo = j.errore; invitoPremium = !!j.premium; } } catch (e) { /* ignore */ }
+      const err = new Error(testo); err.invitoPremium = invitoPremium;
+      throw err;
     }
     return data;
   }
