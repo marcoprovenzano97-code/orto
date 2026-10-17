@@ -402,7 +402,8 @@
   }
 
   // ── Account e Premium (account.js) ─────────────────────
-  const rerender = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  let assistente = null;   // finestra di chat, creata più sotto
+  const rerender = () => { const y = window.scrollY; render(); window.scrollTo(0, y); if (assistente) assistente.aggiorna(); };
   const account = window.OrtoAccount({
     esc, store, state, ZONE, rerender,
     impostaZona(z) { state.zona = z; store.set('zona', z); renderZone(); }
@@ -415,7 +416,7 @@
   account.collega({ get: cassoni.getDati, set: cassoni.setDati });
 
   // ── Assistente e primo avvio ───────────────────────────
-  const assistente = window.OrtoAssistente({ esc, store, account, rerender });
+  assistente = window.OrtoAssistente({ esc, store, account });
   const benvenuto = window.OrtoBenvenuto({
     esc, store, state, ZONE, cassoni,
     impostaZona(z) { state.zona = z; store.set('zona', z); renderZone(); account.zonaCambiata(z); }
@@ -478,6 +479,12 @@
   function route() {
     const h = location.hash.replace(/^#\/?/, '') || 'home';
     const [page, arg] = h.split('/');
+    // L'assistente è una finestra a comparsa: resto sulla pagina di prima e la apro sopra.
+    if (page === 'assistente') {
+      history.replaceState(null, '', location.pathname + location.search + '#/' + (lastRoute && lastRoute !== 'assistente' ? lastRoute : ''));
+      assistente.apri();
+      return route();
+    }
     const view = document.getElementById('view');
     let html, bind = null, tab = page;
     if (page === 'colture') { html = viewColture(); bind = bindColture; }
@@ -486,7 +493,6 @@
     else if (page === 'coltura') { html = viewColtura(arg); bind = bindColtura; tab = 'colture'; }
     else if (page === 'guida') { html = viewGuida(); }
     else if (page === 'account') { html = account.viewAccount(); bind = account.bindAccount; }
-    else if (page === 'assistente') { html = assistente.view(); bind = assistente.bind; }
     else if (page === 'privacy') { html = window.OrtoLegale.privacy(); }
     else if (page === 'termini') { html = window.OrtoLegale.termini(); }
     else if (page === 'mese') { html = viewMese(); bind = bindMese; }
