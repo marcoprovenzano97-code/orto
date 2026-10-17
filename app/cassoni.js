@@ -163,57 +163,184 @@ window.OrtoCassoni = function (ctx) {
   // ── Vista isometrica ─────────────────────────────────────
   // Cassone in legno su una zolla di prato, con gli strati di terra in sezione.
   // Nord in fondo (riga 0), come nella griglia di progetto.
+  // Vista 3D "realistica": terra con grana e rilievo (filtri SVG), prato, legno con venature, piante disegnate.
+  let isoN = 0;
+  const FOGLIA_FAM = {
+    solanacee: '#4e7d2c', cucurbitacee: '#58892f', leguminose: '#6a9c3a', brassicacee: '#7fa38f', asteracee: '#93c24f',
+    apiacee: '#5e9a35', amarantacee: '#5f8f34', amarillidacee: '#6f9a63', lamiacee: '#6f9258', rosacee: '#4f8a35',
+    poacee: '#6d9a3a', caprifoliacee: '#6a9e3c', asparagacee: '#7fae4a'
+  };
+  const FOGLIA = {
+    radicchio: '#8e2b3d', cavolonero: '#3f5f4a', rucola: '#5d8f36', lattuga: '#9bc957', basilico: '#58a234', rosmarino: '#5f7f62',
+    salvia: '#93a88d', menta: '#5aa040', cappuccio: '#9bbf9a', verza: '#7fa86a', bietola: '#4f8a30', barbabietola: '#4d6e34',
+    carciofo: '#8fa79a', timo: '#6d8a5a', origano: '#6b9448'
+  };
+  const FRUTTO = {
+    pomodoro: '#d6402b', peperone: '#c9302a', melanzana: '#4b2357', peperoncino: '#d12a1e', zucchina: '#3c6b2a', zucca: '#e2862b',
+    melone: '#d8c27c', anguria: '#2e5a2a', cetriolo: '#3f7030', fragola: '#d6283a', cavolfiore: '#f1ead2', broccolo: '#41633a',
+    ravanello: '#c8324a', rapa: '#b48bc1', fava: '#9cc06a', pisello: '#a9cf6e', fagiolo: '#9cc06a', fagiolino: '#9cc06a', carciofo: '#6f8a6a'
+  };
+  const FORMA_FAM = {
+    solanacee: 'cespo', leguminose: 'cespo', lamiacee: 'cespo', cucurbitacee: 'zucca', amarillidacee: 'ciuffo', apiacee: 'piuma',
+    poacee: 'ciuffo', asparagacee: 'piuma'
+  };
+  const tinta = (hex, f) => {
+    const n = parseInt(hex.slice(1), 16), t = f < 0 ? 0 : 255, p = Math.abs(f);
+    const ch = s => Math.round(((n >> s) & 255) + (t - ((n >> s) & 255)) * p);
+    return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+  };
+  // Numeri pseudo-casuali ripetibili: la stessa aiuola si disegna sempre uguale.
+  const caso = seme => () => { seme = (seme * 9301 + 49297) % 233280; return seme / 233280; };
+
+  function pianta(cx, cy, id, rnd, u) {
+    const c = BY_ID[id], verde = FOGLIA[id] || FOGLIA_FAM[c.fam] || '#6a9a3a';
+    const alta = ALTE.has(id), frutto = FRUTTO[id];
+    const forma = id === 'mais' ? 'mais' : ['cavolfiore', 'broccolo', 'carciofo'].includes(id) ? 'testa' : FORMA_FAM[c.fam] || 'rosetta';
+    const f = n => n.toFixed(1);
+    const foglia = (x, y, rx, ry, ang, col) =>
+      `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(rx)}" ry="${f(ry)}" transform="rotate(${f(ang)} ${f(x)} ${f(y)})" fill="${col}" stroke="${tinta(col, -0.35)}" stroke-width=".5"/>`;
+    let s = `<ellipse cx="${f(cx + 2)}" cy="${f(cy + 1.5)}" rx="9.5" ry="5" fill="rgba(30,18,8,.35)" filter="url(#ombra${u})"/>`;
+    if (forma === 'rosetta' || forma === 'testa') {
+      const n = 8, R = forma === 'testa' ? 6.5 : 5, fogli = [];
+      for (let i = 0; i < n; i++) {
+        const t = (i / n) * Math.PI * 2 + rnd() * .5;
+        fogli.push({ x: cx + Math.cos(t) * R, y: cy - 2 + Math.sin(t) * R * .58, ang: t * 180 / Math.PI, col: tinta(verde, i % 2 ? -0.12 : 0.04) });
+      }
+      fogli.sort((p, q) => p.y - q.y).forEach(l => { s += foglia(l.x, l.y, 5.6, 3, l.ang, l.col); });
+      for (let i = 0; i < 3; i++) { const t = i * 2.1 + rnd(); s += foglia(cx + Math.cos(t) * 1.8, cy - 3.5 + Math.sin(t), 3.4, 2, t * 57, tinta(verde, 0.18)); }
+      if (forma === 'testa') s += `<circle cx="${f(cx)}" cy="${f(cy - 4)}" r="3.6" fill="${frutto}" stroke="${tinta(frutto, -0.25)}" stroke-width=".5"/><circle cx="${f(cx - 1)}" cy="${f(cy - 5)}" r="1.2" fill="rgba(255,255,255,.35)"/>`;
+      else if (frutto) s += `<circle cx="${f(cx + 3)}" cy="${f(cy + 1)}" r="1.8" fill="${frutto}"/>`;
+    } else if (forma === 'ciuffo' || forma === 'piuma' || forma === 'mais') {
+      const h = forma === 'mais' ? 34 : forma === 'piuma' ? 11 : 13, n = forma === 'mais' ? 7 : 8;
+      for (let i = 0; i < n; i++) {
+        const dx = (i - (n - 1) / 2) * 2.2 + (rnd() - .5) * 1.5, hh = h * (.75 + rnd() * .35);
+        const col = tinta(verde, (rnd() - .5) * .3);
+        s += `<path d="M${f(cx + dx * .2)} ${f(cy)} Q${f(cx + dx * .6)} ${f(cy - hh * .6)} ${f(cx + dx * 1.4)} ${f(cy - hh)}" stroke="${col}" stroke-width="${forma === 'mais' ? 2.2 : forma === 'piuma' ? 1.1 : 1.5}" fill="none" stroke-linecap="round"/>`;
+        if (forma === 'piuma') for (let j = 1; j <= 3; j++) s += `<circle cx="${f(cx + dx * (0.4 + j * .3))}" cy="${f(cy - hh * (j / 3.2))}" r="1.7" fill="${col}" opacity=".9"/>`;
+      }
+      if (forma === 'mais') s += `<path d="M${f(cx)} ${f(cy - 33)} l-2 -5 M${f(cx)} ${f(cy - 33)} l2 -5 M${f(cx)} ${f(cy - 33)} l0 -6" stroke="#d9b45a" stroke-width="1.2" stroke-linecap="round"/>`;
+      if (frutto) s += `<ellipse cx="${f(cx)}" cy="${f(cy + .5)}" rx="2.4" ry="1.6" fill="${frutto}"/>`;
+    } else if (forma === 'zucca' && !alta) {
+      for (let i = 0; i < 6; i++) {
+        const t = (i / 6) * Math.PI * 2 + rnd() * .4;
+        s += foglia(cx + Math.cos(t) * 5, cy - 3 + Math.sin(t) * 3, 6.5, 4.6, t * 57 + 90, tinta(verde, i % 2 ? -0.1 : 0.06));
+      }
+      if (frutto) {
+        const lungo = id === 'zucchina';
+        s += `<ellipse cx="${f(cx + 4)}" cy="${f(cy + 2)}" rx="${lungo ? 5 : 3.8}" ry="${lungo ? 1.9 : 3.2}" transform="rotate(${lungo ? 25 : 0} ${f(cx + 4)} ${f(cy + 2)})" fill="${frutto}" stroke="${tinta(frutto, -0.3)}" stroke-width=".5"/>`;
+      }
+    }
+    if (forma === 'cespo' || (forma === 'zucca' && alta)) {
+      const H = alta ? 26 : 10, n = alta ? 16 : 10, pal = [];
+      if (alta) s += `<line x1="${f(cx + 1)}" y1="${f(cy)}" x2="${f(cx + 1)}" y2="${f(cy - H - 6)}" stroke="#b08a5a" stroke-width="1.4"/>`;
+      for (let i = 0; i < n; i++) {
+        const v = i / n, y = cy - 2 - v * H, larg = (alta ? 6 : 7) * (1 - v * .45);
+        pal.push({ x: cx + (rnd() - .5) * 2 * larg, y: y + (rnd() - .5) * 3, r: alta ? 3.6 : 3.4, col: tinta(verde, (rnd() - .55) * .35) });
+      }
+      pal.sort((p, q) => p.y - q.y).forEach(p => { s += `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r}" fill="${p.col}" stroke="${tinta(p.col, -0.3)}" stroke-width=".4"/>`; });
+      if (frutto) for (let i = 0; i < (alta ? 4 : 3); i++) {
+        const fx = cx + (rnd() - .5) * 9, fy = cy - 2 - rnd() * H * .8;
+        s += c.fam === 'leguminose' ? `<ellipse cx="${f(fx)}" cy="${f(fy)}" rx=".9" ry="3" fill="${frutto}"/>`
+          : `<circle cx="${f(fx)}" cy="${f(fy)}" r="${id === 'melanzana' || id === 'peperone' ? 2.3 : 1.9}" fill="${frutto}" stroke="${tinta(frutto, -0.3)}" stroke-width=".4"/>`;
+      }
+    }
+    return s;
+  }
+
   function isoSVG(cs, k, mini) {
     const { cols, rows } = dimensioni(cs);
     const p = piano(cs, k) || { celle: {} };
     const tipo = tipoDi(cs);
+    const u = ++isoN;
     // Altezza e colori dei bordi: legno (cassone), terra smossa (piena terra), terracotta (vaso)
     const stile = {
-      cassone: { H: 15, sx: '#a06f45', dx: '#82573a', bordo: '#c08c5c', bw: 3.5, assi: true, prato: '#a9c97a' },
-      terra:   { H: 4,  sx: '#6e4f36', dx: '#5a402b', bordo: '#7a5a3e', bw: 1.5, assi: false, prato: '#a9c97a' },
-      vaso:    { H: 24, sx: '#c46a43', dx: '#a4532f', bordo: '#e08f66', bw: 4, assi: true, prato: '#d8cdbd' }
+      cassone: { H: 15, sx: '#a8794e', dx: '#86603f', bordo: '#c8996a', bw: 3.5, assi: true },
+      terra:   { H: 4,  sx: '#7a5638', dx: '#634530', bordo: '#86623f', bw: 1.5, assi: false },
+      vaso:    { H: 24, sx: '#c46a43', dx: '#a4532f', bordo: '#e08f66', bw: 4, assi: false }
     }[tipo];
-    const a = 20, b = 11.5, H = stile.H, G = 0.75, GH = 22;
+    const a = 20, b = 11.5, H = stile.H, G = 0.75, GH = 24;
     const P = (c, r, z = 0) => [(c - r) * a, (c + r) * b - z];
     const giu = (q, d) => [q[0], q[1] + d];
     const pt = qs => qs.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ');
     const poly = (qs, fill, extra = '') => `<polygon points="${pt(qs)}" fill="${fill}" ${extra}/>`;
-    const lato = (q1, q2, d0, d1, fill) => poly([giu(q1, d0), giu(q2, d0), giu(q2, d1), giu(q1, d1)], fill);
+    const lato = (q1, q2, d0, d1, fill, extra) => poly([giu(q1, d0), giu(q2, d0), giu(q2, d1), giu(q1, d1)], fill, extra);
+    const linea = (q1, q2, col, w) => `<line x1="${q1[0].toFixed(1)}" y1="${q1[1].toFixed(1)}" x2="${q2[0].toFixed(1)}" y2="${q2[1].toFixed(1)}" stroke="${col}" stroke-width="${w}"/>`;
+    const rnd = caso(cols * 31 + rows * 17 + (cs.nome || '').length);
+    const fT = `filter="url(#terra${u})"`, fP = `filter="url(#prato${u})"`, fO = `filter="url(#ombra${u})"`;
+
+    const defs = `<defs>
+      <filter id="terra${u}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="${mini ? .9 : .7}" numOctaves="3" seed="4" result="n"/>
+        <feDiffuseLighting in="n" surfaceScale="${mini ? 1 : 1.8}" diffuseConstant="1.1" lighting-color="#fff" result="l"><feDistantLight azimuth="235" elevation="50"/></feDiffuseLighting>
+        <feComposite in="l" in2="SourceGraphic" operator="arithmetic" k1=".95" k2=".22" k3="0" k4="0" result="t"/>
+        <feComposite in="t" in2="SourceAlpha" operator="in"/>
+      </filter>
+      <filter id="prato${u}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="1.6 1" numOctaves="2" seed="9" result="n"/>
+        <feDiffuseLighting in="n" surfaceScale="1.4" diffuseConstant="1.1" lighting-color="#fff" result="l"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
+        <feComposite in="l" in2="SourceGraphic" operator="arithmetic" k1=".85" k2=".28" k3="0" k4="0" result="t"/>
+        <feComposite in="t" in2="SourceAlpha" operator="in"/>
+      </filter>
+      <filter id="ombra${u}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${mini ? 1.5 : 2.5}"/></filter>
+    </defs>`;
 
     const g0 = -G, gc = cols + G, gr = rows + G;
     let s = '';
-    // Zolla: fianchi a strati (erba, terra, argilla, sabbia) e prato sopra
-    [[0, 4, '#7fa04e', '#6b8a40'], [4, 10, '#6e4f36', '#5a402b'], [10, 16, '#a7835a', '#8f6f4a'], [16, GH, '#d6c3a0', '#bfa985']].forEach(([d0, d1, sx, dx]) => {
-      s += lato(P(g0, gr), P(gc, gr), d0, d1, sx);
-      s += lato(P(gc, g0), P(gc, gr), d0, d1, dx);
+    // Zolla di terreno: strati sui fianchi (cotico erboso, terra, argilla, sabbia) con sassolini, prato sopra
+    [[0, 3, '#6f9443', '#5d7e38'], [3, 11, '#6a4a32', '#573b28'], [11, 18, '#9c7a52', '#866645'], [18, GH, '#cdb894', '#b39f7c']].forEach(([d0, d1, sx, dx]) => {
+      s += lato(P(g0, gr), P(gc, gr), d0, d1, sx, fT);
+      s += lato(P(gc, g0), P(gc, gr), d0, d1, dx, fT);
     });
-    s += poly([P(g0, g0), P(gc, g0), P(gc, gr), P(g0, gr)], stile.prato);
-
-    // Cassone: fianchi in legno con le assi
-    s += poly([P(0, rows, H), P(cols, rows, H), P(cols, rows), P(0, rows)], stile.sx);
-    s += poly([P(cols, 0, H), P(cols, rows, H), P(cols, rows), P(cols, 0)], stile.dx);
-    const asse = (q1, q2) => `<line x1="${q1[0].toFixed(1)}" y1="${(q1[1]).toFixed(1)}" x2="${q2[0].toFixed(1)}" y2="${q2[1].toFixed(1)}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`;
-    if (stile.assi) s += asse(P(0, rows, H / 2), P(cols, rows, H / 2)) + asse(P(cols, 0, H / 2), P(cols, rows, H / 2));
-    // Terra con bordo superiore delle assi
-    s += poly([P(0, 0, H), P(cols, 0, H), P(cols, rows, H), P(0, rows, H)], '#5e3f29', `stroke="${stile.bordo}" stroke-width="${stile.bw}" stroke-linejoin="round"`);
     if (!mini) {
-      for (let c = 1; c < cols; c++) s += `<line x1="${P(c, 0, H)[0]}" y1="${P(c, 0, H)[1]}" x2="${P(c, rows, H)[0]}" y2="${P(c, rows, H)[1]}" stroke="rgba(255,255,255,.07)"/>`;
-      for (let r = 1; r < rows; r++) s += `<line x1="${P(0, r, H)[0]}" y1="${P(0, r, H)[1]}" x2="${P(cols, r, H)[0]}" y2="${P(cols, r, H)[1]}" stroke="rgba(255,255,255,.07)"/>`;
+      const sassi = Math.round((cols + rows) * 1.6);
+      for (let i = 0; i < sassi; i++) {
+        const destro = rnd() < .5, t = rnd(), d = 5 + rnd() * (GH - 7);
+        const q = destro ? P(gc, g0 + (gr - g0) * t) : P(g0 + (gc - g0) * t, gr);
+        s += `<ellipse cx="${q[0].toFixed(1)}" cy="${(q[1] + d).toFixed(1)}" rx="${(1 + rnd() * 1.6).toFixed(1)}" ry="${(.7 + rnd()).toFixed(1)}" fill="${rnd() < .5 ? '#d8cbb4' : '#8f7f6a'}" opacity=".85"/>`;
+      }
     }
+    s += poly([P(g0, g0), P(gc, g0), P(gc, gr), P(g0, gr)], '#76a043', fP);
+    // Ombra morbida dell'aiuola sul prato
+    s += poly([P(0.15, 0.15), P(cols + .45, 0.15), P(cols + .45, rows + .45), P(0.15, rows + .45)], 'rgba(25,30,10,.35)', fO);
+
+    // Fianchi dell'aiuola
+    s += poly([P(0, rows, H), P(cols, rows, H), P(cols, rows), P(0, rows)], stile.sx, tipo === 'cassone' ? '' : fT);
+    s += poly([P(cols, 0, H), P(cols, rows, H), P(cols, rows), P(cols, 0)], stile.dx, tipo === 'cassone' ? '' : fT);
+    if (stile.assi) {
+      // Assi di legno: giunto orizzontale, venature e montanti
+      s += linea(P(0, rows, H / 2), P(cols, rows, H / 2), 'rgba(40,20,5,.35)', 1) + linea(P(cols, 0, H / 2), P(cols, rows, H / 2), 'rgba(40,20,5,.35)', 1);
+      if (!mini) for (let i = 0; i < 6 + cols + rows; i++) {
+        const z = 1.2 + rnd() * (H - 2.4), t0 = rnd() * .7, t1 = Math.min(1, t0 + .1 + rnd() * .3);
+        s += rnd() < .5 ? linea(P(cols * t0, rows, z), P(cols * t1, rows, z), 'rgba(60,30,10,.2)', .55)
+                        : linea(P(cols, rows * t0, z), P(cols, rows * t1, z), 'rgba(60,30,10,.2)', .55);
+      }
+      const passo = Math.max(2, Math.round(cols / 3));
+      for (let c = passo; c < cols; c += passo) s += linea(P(c, rows, H), P(c, rows), 'rgba(40,20,5,.3)', .8);
+    }
+    // Terra con grana e bordo superiore
+    const sopra = [P(0, 0, H), P(cols, 0, H), P(cols, rows, H), P(0, rows, H)];
+    s += poly(sopra, '#6f472c', fT);
+    if (tipo !== 'terra') {
+      // Ombra interna lungo i bordi lontani
+      s += poly([P(0, 0, H), P(cols, 0, H), P(cols, .35, H), P(.35, .35, H), P(.35, rows, H), P(0, rows, H)], 'rgba(20,10,0,.3)', fO);
+    } else if (!mini) {
+      // Piena terra: solchi leggeri
+      for (let r = 1; r < rows; r++) s += linea(P(0, r, H), P(cols, r, H), 'rgba(30,15,5,.18)', 1.2);
+    }
+    s += poly(sopra, 'none', `stroke="${stile.bordo}" stroke-width="${stile.bw}" stroke-linejoin="round"`);
 
     // Camminamenti e pacciamatura sulla superficie, divisori come assi
-    const cella = (r, c, fill, op = 1) => poly([P(c, r, H), P(c + 1, r, H), P(c + 1, r + 1, H), P(c, r + 1, H)], fill, `opacity="${op}" stroke="rgba(0,0,0,.12)" stroke-width=".6"`);
+    const cella = (r, c, fill, op = 1) => poly([P(c, r, H), P(c + 1, r, H), P(c + 1, r + 1, H), P(c, r + 1, H)], fill, `opacity="${op}" ${fT}`);
     Object.entries(p.celle).forEach(([rc, v]) => {
       const cam = camminoDi(v), [r, c] = rc.split(',').map(Number);
       if (cam && r < rows && c < cols) s += cella(r, c, CAMMINI[cam].iso);
     });
     Object.keys(p.pacciame || {}).forEach(rc => {
       const [r, c] = rc.split(',').map(Number);
-      if (r < rows && c < cols && !camminoDi(p.celle[rc])) s += cella(r, c, '#d9b86a', .55);
+      if (r < rows && c < cols && !camminoDi(p.celle[rc])) s += cella(r, c, '#e2c27a', .8);
     });
     (cs.divisori || []).filter(r => r > 0 && r < rows).forEach(r => {
-      const a = P(0, r, H + 3), z = P(cols, r, H + 3);
-      s += `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${z[0].toFixed(1)}" y2="${z[1].toFixed(1)}" stroke="#a06f45" stroke-width="4" stroke-linecap="round"/>`;
+      s += `<line x1="${P(0, r, H + 3)[0].toFixed(1)}" y1="${P(0, r, H + 3)[1].toFixed(1)}" x2="${P(cols, r, H + 3)[0].toFixed(1)}" y2="${P(cols, r, H + 3)[1].toFixed(1)}" stroke="#a8794e" stroke-width="4" stroke-linecap="round"/>`;
     });
 
     // Piante, dalla più lontana alla più vicina
@@ -222,16 +349,13 @@ window.OrtoCassoni = function (ctx) {
       .sort((x, y) => (x.r + x.c) - (y.r + y.c) || x.c - y.c);
     piante.forEach(({ r, c, id }) => {
       const [cx, cy] = P(c + .5, r + .5, H);
-      const alta = ALTE.has(id), fs = alta ? 25 : 19;
-      s += `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${a * .5}" ry="${b * .5}" fill="rgba(0,0,0,.28)"/>`;
-      if (alta) s += `<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${cx.toFixed(1)}" y2="${(cy - 34).toFixed(1)}" stroke="#c9a77a" stroke-width="1.6"/>`;
-      s += `<text x="${cx.toFixed(1)}" y="${(cy + 2 - (alta ? 6 : 0)).toFixed(1)}" font-size="${fs}" text-anchor="middle">${BY_ID[id].emoji}</text>`;
+      s += pianta(cx, cy, id, rnd, u);
     });
 
     const minX = P(g0, gr)[0] - 4, maxX = P(gc, g0)[0] + 4;
     const minY = P(g0, g0)[1] - (piante.length ? 40 : 6), maxY = P(gc, gr)[1] + GH + 4;
     const titolo = `${cs.nome}, vista 3D`;
-    return `<svg class="iso" viewBox="${minX.toFixed(0)} ${minY.toFixed(0)} ${(maxX - minX).toFixed(0)} ${(maxY - minY).toFixed(0)}" role="img" aria-label="${esc(titolo)}">${s}</svg>`;
+    return `<svg class="iso" viewBox="${minX.toFixed(0)} ${minY.toFixed(0)} ${(maxX - minX).toFixed(0)} ${(maxY - minY).toFixed(0)}" role="img" aria-label="${esc(titolo)}">${defs}${s}</svg>`;
   }
 
   // ── Lista cassoni ────────────────────────────────────────

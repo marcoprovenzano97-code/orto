@@ -271,16 +271,14 @@ details[open] > summary { margin-bottom: 12px; }
 /* ── Stile "terra" e vista isometrica ────────────────── */
 .iso-hero {
   text-align: center; padding: 18px 16px 16px; border-radius: 22px;
-  background: linear-gradient(180deg, #3d2618 0%, #4a3020 100%); color: #f8f1e6;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow);
 }
 .iso-hero h1 { font-size: 1.7rem; margin-top: 4px; }
-.iso-hero .tagline { margin: 2px 0 10px; color: #d2ad72; }
+.iso-hero .tagline { margin: 2px 0 10px; color: var(--muted); }
 .iso-hero .meta { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
-.iso-hero .pill { background: rgba(248,241,230,.12); color: #f8f1e6; }
+
 .iso-stage {
-  margin: 0 auto 10px; max-width: 360px; padding: 16px 12px 10px; border-radius: 22px;
-  background: linear-gradient(180deg, #dbe9ee 0%, #f3ecdc 100%);
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  margin: 0 auto 6px; max-width: 460px; padding: 8px 6px 4px;
 }
 .iso { display: block; width: 100%; height: auto; max-height: 340px; overflow: visible; }
 .row .thumb {
@@ -291,7 +289,7 @@ details[open] > summary { margin-bottom: 12px; }
 .month-head h1, .hero h1 { font-weight: 600; }
 .card { border-radius: var(--radius); }
 .row { border-radius: 14px; box-shadow: var(--shadow); }
-.iso-hero .hero-cta { margin-top: 14px; background: #f8f1e6; border-color: #f8f1e6; color: #3d2618; }
+.iso-hero .hero-cta { margin-top: 12px; }
 #disegna { scroll-margin-top: 120px; }
 
 /* ── Account e Premium ───────────────────────────────── */
